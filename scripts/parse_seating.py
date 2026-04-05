@@ -12,23 +12,20 @@ def load_master_mapping(excel_path="Program Elective Allocation.xlsx"):
         return mapping
         
     try:
-        # Pass skiprows=1 to skip the first header line if the columns are in the second row
-        # However, it's safer to just load and find 'Registration No'
-        df = pd.read_excel(excel_path)
-        # Find the actual row containing columns 
-        # (Assuming 'Registration No' is the column name in row 1, meaning index 0)
-        # Actually our test showed the first dict record had subheaders, so the header is at row 0 (default).
-        # We'll just iterate records.
-        records = df.to_dict(orient="records")
-        for rec in records:
-            reg = str(rec.get("Registration No", "")).strip().upper()
-            if reg and reg != "NAN" and "Registration No" not in reg:
-                name = str(rec.get("Student Name", "Student")).strip()
-                sec = str(rec.get("Core Section", "")).strip()
-                if name == "nan": name = "Student"
-                if sec == "nan": sec = ""
-                mapping[reg] = { "name": name, "section": sec }
-        print(f"Successfully loaded {len(mapping)} master records from Excel.")
+        # Read all sheets into a dictionary of DataFrames
+        all_sheets = pd.read_excel(excel_path, sheet_name=None)
+        
+        for sheet_name, df in all_sheets.items():
+            records = df.to_dict(orient="records")
+            for rec in records:
+                reg = str(rec.get("Registration No", "")).strip().upper()
+                if reg and reg != "NAN" and "Registration No" not in reg:
+                    name = str(rec.get("Student Name", "Student")).strip()
+                    sec = str(rec.get("Core Section", "")).strip()
+                    if name == "nan": name = "Student"
+                    if sec == "nan": sec = ""
+                    mapping[reg] = { "name": name, "section": sec }
+        print(f"Successfully loaded {len(mapping)} unique master records from all Excel sheets.")
     except Exception as e:
         print(f"Error loading Excel mapping: {e}")
         
