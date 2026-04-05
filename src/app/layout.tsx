@@ -28,14 +28,25 @@ const dmMono = DM_Mono({
 
 
 export const metadata: Metadata = {
-  title: "MUJ AIML — Exam Seating Portal",
+  title: "MUJ Seating Plan | AIML Exam Portal",
   description:
-    "Find your exam seat for Manipal University Jaipur – Department of Artificial Intelligence and Machine Learning.",
-  keywords: ["MUJ", "Manipal University Jaipur", "AIML", "Exam Seating", "MTE 2026"],
+    "Check your MUJ seating plan instantly. Official exam seating arrangement for Manipal University Jaipur (Dept. of Artificial Intelligence and Machine Learning).",
+  keywords: [
+    "muj seating plan",
+    "muj exam seating",
+    "manipal university jaipur seating list",
+    "muj aiml seating",
+    "muj mid term seating",
+    "muj exam portal",
+    "muj seating arrangement"
+  ],
+  authors: [{ name: "MUJ AIML" }],
+  robots: "index, follow",
   openGraph: {
-    title: "MUJ AIML — Exam Seating Portal",
-    description: "Your seat. Your ticket. Instantly.",
+    title: "MUJ Seating Plan | Exam Portal",
+    description: "Find your MUJ exam room and seat number instantly.",
     type: "website",
+    locale: "en_IN",
   },
   verification: {
     google: "TVYOMFr3wJQ8k1GfeW--_Yq_dJWr-Cxlfwn4BJiq1Xk",
