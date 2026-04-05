@@ -385,7 +385,8 @@ export default function Page() {
       {/* ── Top bar ── */}
       <div className="relative z-20 flex items-center justify-between px-4 sm:px-6 pt-4">
         <div className="relative flex-shrink-0">
-          <Image src="/muj-logo.svg" alt="MUJ Logo" width={160} height={36} className="object-contain" priority />
+          <Image src="/muj-logo.svg" alt="MUJ Logo" width={160} height={36} className="object-contain block dark:hidden" priority />
+          <Image src="/muj-logo-darkmode-removebg-preview.png" alt="MUJ Logo Dark" width={160} height={36} className="object-contain hidden dark:block" priority />
         </div>
         <AnimatedThemeToggler 
           className="w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-transform hover:scale-110 active:scale-95"
