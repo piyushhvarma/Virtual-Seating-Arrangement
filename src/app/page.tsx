@@ -359,6 +359,10 @@ export default function Page() {
   const [selectedExam, setSelectedExam] = useState<StudentInfo | null>(null);
   const seatMapRef = useRef<HTMLDivElement>(null);
 
+  const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const handleSearch = useCallback((regNo: string) => {
     setState({ status: "loading" });
     setTimeout(() => {
@@ -384,15 +388,18 @@ export default function Page() {
 
       {/* ── Top bar ── */}
       <div className="relative z-20 flex items-center justify-between px-4 sm:px-6 pt-4">
-        <div className="relative flex-shrink-0">
-          <div className="block dark:hidden">
-            <Image src="/muj-logo.svg" alt="MUJ Logo Light" width={160} height={36} className="object-contain" priority />
-          </div>
-          <div className="hidden dark:block">
-            <Image src="/muj-logo-darkmode-removebg-preview.png" alt="MUJ Logo Dark" width={160} height={36} className="object-contain" priority />
-          </div>
+        <div className="relative flex-shrink-0 min-w-[160px] min-h-[36px]">
+          {mounted && (
+            <Image
+              src={resolvedTheme === "dark" ? "/muj-logo-darkmode-removebg-preview.png" : "/muj-logo.svg"}
+              alt="MUJ Logo"
+              width={160} height={36}
+              className="object-contain"
+              priority
+            />
+          )}
         </div>
-        <AnimatedThemeToggler 
+        <AnimatedThemeToggler
           className="w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-transform hover:scale-110 active:scale-95"
           style={{ border: "2px solid var(--card-border)", background: "var(--card-bg)" }}
         />
@@ -442,16 +449,10 @@ export default function Page() {
                       border: "2px dashed var(--border)",
                       background: "var(--card-bg)",
                     }}>
-                    <Sparkles size={28} style={{ color: "var(--brand)" }} />
+                    <GraduationCap size={28} style={{ color: "var(--brand)" }} />
                   </motion.div>
                   <div>
-                    <p className="font-bold text-sm" style={{ color: "var(--text-2)", fontFamily: "var(--font-head, sans-serif)" }}>Your ticket will appear here</p>
-                    <p className="text-xs mt-0.5" style={{ color: "var(--text-3)" }}>Search above to get started</p>
-                  </div>
-                  <div className="flex items-center gap-2 text-[11px] mt-1" style={{ color: "var(--text-3)" }}>
-                    <Brain size={12} style={{ color: "var(--purple)" }} />
-                    <span>AI &amp; Machine Learning · MUJ</span>
-                    <Zap size={12} style={{ color: "var(--brand)" }} />
+                    <p className="font-bold text-sm" style={{ color: "var(--text-2)", fontFamily: "var(--font-head, sans-serif)" }}>Your examinations seating will be listed here</p>
                   </div>
                 </motion.div>
               )}
@@ -482,7 +483,7 @@ export default function Page() {
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                   <button onClick={() => setSelectedExam(null)} className="pill-btn self-start mb-1 flex items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
                     style={{ background: "var(--card-bg)", color: "var(--text-1)", border: "2px solid var(--card-border)" }}>
-                     <ArrowLeft size={14} /> Back to Tickets
+                    <ArrowLeft size={14} /> Back to Tickets
                   </button>
                   <StudentTicket student={selectedExam} hideLocate />
                   <div ref={seatMapRef}>
@@ -501,8 +502,8 @@ export default function Page() {
           </div>
 
           {/* Footer */}
-          <p className="text-[10px] text-center pb-4 font-medium" style={{ color: "var(--text-3)" }}>
-            Dept. of Artificial Intelligence &amp; Machine Learning · MUJ · MTE Feb 2026
+          <p className="text-[10px] text-center pb-4 font-medium tracking-wide uppercase" style={{ color: "var(--text-3)" }}>
+            Built by your mate, for the mates -- Good luck on your exams!
           </p>
         </div>
       </div>
