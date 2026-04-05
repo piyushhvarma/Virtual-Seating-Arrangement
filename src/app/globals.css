@@ -1,0 +1,345 @@
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════
+   Clean Bordered Card Design
+   Thick dark borders · White cards · Minimal palette
+   ═══════════════════════════════════════════════════════ */
+
+:root {
+  --primary: #1a1a1a;
+  --primary-dark: #000000;
+  --primary-rgb: 26, 26, 26;
+  --primary-inv: #ffffff;
+
+  --brand: var(--primary);
+  --brand-dim: var(--primary-dark);
+  --purple: var(--primary);
+  --blue: var(--primary);
+  --cyan: var(--primary);
+
+  --font-head: var(--font-space);
+
+  /* ── Light (default) ──────────────────────────── */
+  --bg: #f5f5f5;
+  --card-bg: #ffffff;
+  --card-border: #1a1a1a;
+  --card-radius: 22px;
+  --card-border-w: 2.5px;
+  --card-shadow: 4px 4px 0px #1a1a1a;
+  --card-shadow-sm: 2px 2px 0px #1a1a1a;
+
+  --pill-bg: #1a1a1a;
+  --pill-text: #ffffff;
+
+  --text-1: #0f0f0f;
+  --text-2: #4a4a4a;
+  --text-3: #8a8a8a;
+
+  --border: #e0e0e0;
+  --border-dark: #1a1a1a;
+
+  --input-bg: #ffffff;
+  --input-border: #d0d0d0;
+
+  --badge-dark-bg: #1a1a1a;
+  --badge-dark-text: #ffffff;
+  --badge-light-bg: #f0f0f0;
+  --badge-light-text: #333333;
+  --badge-light-border: #d0d0d0;
+}
+
+.dark {
+  --primary: #e8e8e8;
+  --primary-dark: #ffffff;
+  --primary-rgb: 232, 232, 232;
+  --primary-inv: #0a0a0a;
+
+  --bg: #0a0a0a;
+  --card-bg: #161616;
+  --card-border: #3a3a3a;
+  --card-shadow: 4px 4px 0px #000000;
+  --card-shadow-sm: 2px 2px 0px #000000;
+
+  --pill-bg: #e8e8e8;
+  --pill-text: #0a0a0a;
+
+  --text-1: #f0f0f0;
+  --text-2: #a0a0a0;
+  --text-3: #666666;
+
+  --border: #2a2a2a;
+  --border-dark: #4a4a4a;
+
+  --input-bg: #1c1c1c;
+  --input-border: #333333;
+
+  --badge-dark-bg: #e0e0e0;
+  --badge-dark-text: #0a0a0a;
+  --badge-light-bg: #1e1e1e;
+  --badge-light-text: #c0c0c0;
+  --badge-light-border: #333333;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-dm, 'DM Sans', system-ui, sans-serif);
+  background: var(--bg);
+  color: var(--text-1);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* ═══════════════════════════════════════════════════════
+   CARD — thick bordered, rounded, 3D shadow
+   ═══════════════════════════════════════════════════════ */
+.card {
+  background: var(--card-bg);
+  border: var(--card-border-w) solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.card-sm {
+  background: var(--card-bg);
+  border: 2px solid var(--card-border);
+  border-radius: 16px;
+  box-shadow: var(--card-shadow-sm);
+}
+
+.card-flat {
+  background: var(--card-bg);
+  border: 2px solid var(--border);
+  border-radius: 16px;
+}
+
+.card-inner {
+  background: var(--card-bg);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+}
+
+/* ── Pill button (dark) ──────────────────────── */
+.pill-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 24px;
+  background: var(--pill-bg);
+  color: var(--pill-text);
+  border: none;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: transform 0.1s ease, opacity 0.15s ease;
+  font-family: var(--font-head, 'Space Grotesk', sans-serif);
+}
+
+.pill-btn:hover {
+  opacity: 0.85;
+}
+
+.pill-btn:active {
+  transform: scale(0.96);
+}
+
+.pill-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ── Gradient text ───────────────────────────── */
+.grad-text {
+  background: var(--primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ── Badges ──────────────────────────────────── */
+.badge-dark {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  background: var(--badge-dark-bg);
+  color: var(--badge-dark-text);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-head, sans-serif);
+}
+
+.badge-light {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  background: var(--badge-light-bg);
+  color: var(--badge-light-text);
+  border: 1.5px solid var(--badge-light-border);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.badge-brand {
+  background: rgba(var(--primary-rgb), 0.1);
+  border: 1.5px solid rgba(var(--primary-rgb), 0.3);
+  color: var(--primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.badge-purple {
+  background: rgba(var(--primary-rgb), 0.08);
+  border: 1.5px solid rgba(var(--primary-rgb), 0.25);
+  color: var(--primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.badge-blue {
+  background: rgba(var(--primary-rgb), 0.08);
+  border: 1.5px solid rgba(var(--primary-rgb), 0.2);
+  color: var(--primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.badge-green {
+  background: rgba(var(--primary-rgb), 0.08);
+  border: 1.5px solid rgba(var(--primary-rgb), 0.25);
+  color: var(--primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ── Seat cell ───────────────────────────────── */
+.seat-cell {
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-family: var(--font-mono, monospace);
+  font-weight: 500;
+  line-height: 1;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  cursor: default;
+  background: var(--card-bg);
+  border: 1.5px solid var(--border);
+  color: var(--text-3);
+  aspect-ratio: 1;
+}
+
+.seat-cell:hover {
+  transform: scale(1.1);
+  z-index: 5;
+  border-color: var(--card-border);
+  box-shadow: var(--card-shadow-sm);
+}
+
+/* ── Dashed separator ────────────────────────── */
+.dashed-sep {
+  border: none;
+  border-top: 2px dashed var(--border);
+  margin: 0;
+}
+
+/* ── Scrollbar ───────────────────────────────── */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--text-3);
+  border-radius: 99px;
+}
+
+::selection {
+  background: rgba(16, 185, 129, 0.18);
+}
+
+/* ── Keyframes ───────────────────────────────── */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(var(--primary-rgb), 0.6); }
+  70% { box-shadow: 0 0 0 8px rgba(var(--primary-rgb), 0); }
+  100% { box-shadow: 0 0 0 0 rgba(var(--primary-rgb), 0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-5px); }
+  40%, 80% { transform: translateX(5px); }
+}
+
+.anim-float { animation: float 5s ease-in-out infinite; }
+.anim-pulse { animation: pulse-ring 1.8s ease-out infinite; }
+.anim-spin { animation: spin 2.5s linear infinite; }
+.anim-fade { animation: fadeIn 0.4s ease-out; }
+.anim-slide { animation: slideUp 0.4s ease-out; }
+.anim-shake { animation: shake 0.5s ease-out; }
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
