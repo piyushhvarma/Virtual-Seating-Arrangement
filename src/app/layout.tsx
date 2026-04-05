@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, DM_Sans, DM_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 // Premium fonts
@@ -36,6 +37,9 @@ export const metadata: Metadata = {
     description: "Your seat. Your ticket. Instantly.",
     type: "website",
   },
+  verification: {
+    google: "TVYOMFr3wJQ8k1GfeW--_Yq_dJWr-Cxlfwn4BJiq1Xk",
+  },
 };
 
 export default function RootLayout({
@@ -54,6 +58,7 @@ export default function RootLayout({
         >
           {children}
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
