@@ -351,7 +351,7 @@ function ErrorState({ error }: { error: LookupError }) {
 type SearchState =
   | { status: "idle" }
   | { status: "loading" }
-  | { status: "found"; data: StudentInfo[] }
+  | { status: "found"; name: string; data: StudentInfo[] }
   | { status: "error"; error: LookupError };
 
 export default function Page() {
@@ -363,16 +363,14 @@ export default function Page() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const handleSearch = useCallback((regNo: string) => {
+  const handleSearch = useCallback(async (regNo: string) => {
     setState({ status: "loading" });
-    setTimeout(() => {
-      const result = lookupStudent(regNo);
-      setState(result.success
-        ? { status: "found", data: result.data }
-        : { status: "error", error: result.error }
-      );
-      setSelectedExam(null);
-    }, 650);
+    const result = await lookupStudent(regNo);
+    setState(result.success
+      ? { status: "found", name: result.name, data: result.data }
+      : { status: "error", error: result.error }
+    );
+    setSelectedExam(null);
   }, []);
 
   const handleLocate = useCallback((exam: StudentInfo) => {
@@ -469,9 +467,20 @@ export default function Page() {
               {state.status === "found" && !selectedExam && (
                 <motion.div key="found-multi" className="flex flex-col gap-4 w-full anim-slide"
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                  <p className="font-bold text-sm mb-1 px-1" style={{ color: "var(--text-2)", fontFamily: "var(--font-head, sans-serif)" }}>
-                    Found {state.data.length} allocated exams:
-                  </p>
+                  <div className="px-1 mb-1">
+                    <p className="font-bold text-xl" style={{ color: "var(--text-1)", fontFamily: "var(--font-head, sans-serif)" }}>
+                        Welcome, {state.name}!
+                    </p>
+                    {state.data.length > 0 ? (
+                        <p className="font-bold text-sm mt-1" style={{ color: "var(--text-2)", fontFamily: "var(--font-head, sans-serif)" }}>
+                            Found {state.data.length} allocated exams:
+                        </p>
+                    ) : (
+                        <p className="font-bold text-sm mt-1" style={{ color: "var(--text-3)", fontFamily: "var(--font-head, sans-serif)" }}>
+                            No active exam seating allocated yet. Check back soon.
+                        </p>
+                    )}
+                  </div>
                   {state.data.map((exam, idx) => (
                     <StudentTicket key={idx} student={exam} onLocate={() => handleLocate(exam)} />
                   ))}

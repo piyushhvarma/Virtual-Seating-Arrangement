@@ -1,6 +1,3 @@
-import studentsData from "@/data/students.json";
-import { getSeatCoordinates } from "./getSeatCoordinates";
-
 export interface StudentInfo {
     regNo: string;
     name: string;
@@ -19,82 +16,42 @@ export interface StudentInfo {
 }
 
 export interface LookupError {
-    type: "NOT_FOUND" | "INVALID_FORMAT";
+    type: "NOT_FOUND" | "INVALID_FORMAT" | "NETWORK_ERROR";
     message: string;
 }
 
 export type LookupResult =
-    | { success: true; data: StudentInfo[] }
+    | { success: true; name: string; data: StudentInfo[] }
     | { success: false; error: LookupError };
 
-const REG_NO_REGEX = /^23FE10CAI\d{5}$/i;
-
-export function lookupStudent(rawInput: string): LookupResult {
+export async function lookupStudent(rawInput: string): Promise<LookupResult> {
     const input = rawInput.trim().toUpperCase();
-
-    if (!REG_NO_REGEX.test(input)) {
+    if (!input) {
         return {
             success: false,
-            error: {
-                type: "INVALID_FORMAT",
-                message:
-                    "Invalid format. AIML reg numbers look like: 23FE10CAI00019",
-            },
+            error: { type: "INVALID_FORMAT", message: "Missing registration number." },
         };
     }
 
-    const students = studentsData.students as Record<
-        string,
-        Array<{
-            name: string;
-            section: string;
-            subjectCode: string;
-            subject: string;
-            room: string;
-            seatIndex: number;
-            totalStudentsInRoom: number;
-            rows: number;
-            cols: number;
-            examDate: string;
-            examTime: string;
-        }>
-    >;
-
-    const records = students[input];
-
-    if (!records || records.length === 0) {
+    try {
+        const response = await fetch(`/api/search?regNo=${encodeURIComponent(input)}`);
+        const result = await response.json();
+        
+        if (!response.ok) {
+            return {
+                success: false,
+                error: result.error || { type: "NOT_FOUND", message: "Error contacting the server." },
+            };
+        }
+        
+        return result as LookupResult;
+    } catch (err) {
         return {
             success: false,
             error: {
-                type: "NOT_FOUND",
-                message:
-                    "Registration number not found. Please check and try again.",
+                type: "NETWORK_ERROR",
+                message: "A network error occurred while connecting to the backend seat locator.",
             },
         };
     }
-
-    const mappedData = records.map((record) => {
-        const seatLabel = getSeatCoordinates(record.seatIndex, record.rows);
-        return {
-            regNo: input,
-            name: record.name,
-            section: record.section,
-            subjectCode: record.subjectCode,
-            subject: record.subject,
-            room: record.room,
-            seatLabel,
-            seatIndex: record.seatIndex,
-            rows: record.rows,
-            cols: record.cols,
-            examDate: record.examDate,
-            examTime: record.examTime,
-            examTitle: studentsData.examMeta.title,
-            department: studentsData.examMeta.department,
-        };
-    });
-
-    return {
-        success: true,
-        data: mappedData,
-    };
 }
