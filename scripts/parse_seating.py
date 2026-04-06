@@ -135,6 +135,9 @@ def parse_seating_pdfs(pdf_dir=".", output_json="src/data/students.json"):
         except Exception as e:
             print(f"Error extracting from {basename}: {e}")
 
+    # Sort students dictionary by keys (Registration Numbers) alphanumerically
+    output_data["students"] = dict(sorted(output_data["students"].items()))
+
     os.makedirs(os.path.dirname(output_json), exist_ok=True)
     with open(output_json, "w", encoding="utf-8") as f:
         json.dump(output_data, f, indent=4)
