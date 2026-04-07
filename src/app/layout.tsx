@@ -40,13 +40,33 @@ export const metadata: Metadata = {
     "muj exam portal",
     "muj seating arrangement"
   ],
-  authors: [{ name: "MUJ AIML" }],
+  authors: [{ name: "MUJ Engineering" }],
   robots: "index, follow",
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
   openGraph: {
-    title: "MUJ Seating Plan | Exam Portal",
-    description: "Find your MUJ exam room and seat number instantly.",
+    title: "MUJ Seating Plan | Official Exam Portal",
+    description: "Find your MUJ room and exact seat index instantly. Access live schedules for AIML, IT, and Core Engineering examinations.",
+    siteName: "MUJ Exam Portal",
+    images: [
+      {
+        url: "/logo.png",
+        width: 1200,
+        height: 630,
+        alt: "MUJ Seating Portal Official Cover",
+      },
+    ],
     type: "website",
     locale: "en_IN",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "MUJ Seating Plan | Official Exam Portal",
+    description: "Find your MUJ room and exact seat instantly. Access live schedules securely.",
+    images: ["/logo.png"],
   },
   verification: {
     google: "TVYOMFr3wJQ8k1GfeW--_Yq_dJWr-Cxlfwn4BJiq1Xk",
