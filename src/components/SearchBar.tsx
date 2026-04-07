@@ -87,16 +87,19 @@ export default function SearchBar({ onSearch, isLoading = false }: SearchBarProp
                 </motion.button>
             </motion.div>
 
-            {/* Demo chips */}
-            <div className="flex flex-wrap gap-1.5 mt-3">
-                <span className="text-[10px] tracking-wide" style={{ color: "var(--text-3)", fontFamily: "var(--font-head)" }}>Try:</span>
-                {["23FE10CAI00019", "23FE10CAI00524", "23FE10CAI00153"].map((d) => (
+            {/* Quick Prefixes */}
+            <div className="flex flex-wrap gap-1.5 mt-3 items-center">
+                <span className="text-[10px] tracking-wide font-bold uppercase" style={{ color: "var(--text-3)", fontFamily: "var(--font-head)" }}>Quick Prefix:</span>
+                {["23FE10CAI", "23FE10ITE", "23FE10CCE"].map((prefix) => (
                     <button
-                        key={d}
-                        onClick={() => { setValue(d); onSearch(d); }}
-                        className="text-[10px] font-mono px-2 py-0.5 rounded-md cursor-pointer badge-brand hover:opacity-80 transition-opacity"
+                        key={prefix}
+                        onClick={() => { 
+                            setValue(prefix); 
+                            document.getElementById("reg-input")?.focus(); 
+                        }}
+                        className="text-[10px] font-mono px-2 py-0.5 rounded-md cursor-pointer badge-dark hover:opacity-80 transition-opacity"
                     >
-                        {d}
+                        {prefix}
                     </button>
                 ))}
             </div>

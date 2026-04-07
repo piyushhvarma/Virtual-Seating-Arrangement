@@ -28,6 +28,7 @@ const dmMono = DM_Mono({
 
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000"),
   title: "MUJ Seating Plan | AIML Exam Portal",
   description:
     "Check your MUJ seating plan instantly. Official exam seating arrangement for Manipal University Jaipur (Dept. of Artificial Intelligence and Machine Learning).",
@@ -43,9 +44,9 @@ export const metadata: Metadata = {
   authors: [{ name: "MUJ Engineering" }],
   robots: "index, follow",
   icons: {
-    icon: "/logo.png",
-    shortcut: "/logo.png",
-    apple: "/logo.png",
+    icon: "/muj-icon.png?v=5",
+    shortcut: "/muj-icon.png?v=5",
+    apple: "/muj-icon.png?v=5",
   },
   openGraph: {
     title: "MUJ Seating Plan | Official Exam Portal",

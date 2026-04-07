@@ -95,10 +95,13 @@ function SearchBar({ onSearch, isLoading }: { onSearch: (r: string) => void; isL
       </div>
 
       <div className="flex flex-wrap gap-1.5 mt-3 items-center">
-        <span className="text-[10px] font-semibold" style={{ color: "var(--text-3)" }}>Try:</span>
-        {["23FE10CAI00019", "23FE10CAI00524", "23FE10CAI00153"].map(d => (
-          <button key={d} onClick={() => { setVal(d); onSearch(d); }}
-            className="badge-light text-[10px] font-mono cursor-pointer hover:opacity-70 transition-opacity">{d}</button>
+        <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--text-3)" }}>Quick Prefix:</span>
+        {["23FE10CAI", "23FE10ITE", "23FE10CCE"].map(prefix => (
+          <button key={prefix} onClick={() => { 
+            setVal(prefix); 
+            document.getElementById("reg-input")?.focus(); 
+          }}
+          className="badge-dark px-2 py-0.5 rounded text-[10px] font-mono font-bold cursor-pointer hover:opacity-70 transition-opacity">{prefix}</button>
         ))}
       </div>
     </div>
