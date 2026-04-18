@@ -514,9 +514,30 @@ export default function Page() {
           </div>
 
           {/* Footer */}
-          <p className="text-[10px] text-center pb-4 font-medium tracking-wide uppercase" style={{ color: "var(--text-3)" }}>
-            Built by your mate, for the mates -- Good luck on your exams!
-          </p>
+          <div className="flex flex-col items-center gap-2 pb-8 mt-auto">
+            <p className="text-[10px] text-center font-medium tracking-wide uppercase opacity-60" style={{ color: "var(--text-3)" }}>
+              Built by your mate, for the mates — Good luck on your exams!
+            </p>
+            <p className="text-center font-medium text-[11px]" style={{ color: "var(--text-2)", fontFamily: "var(--font-head)" }}>
+              Trust me we got good accuracy. Still a question?{" "}
+              <a 
+                href="https://drive.google.com/drive/folders/1yHIUgj_pHTUJw3fN_uLP2hSzlklbSOco?usp=sharing" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="underline decoration-[var(--brand)]/30 underline-offset-4 hover:text-[var(--brand)] hover:decoration-[var(--brand)] transition-all duration-300 cursor-pointer"
+              >
+                Check yourself here.
+              </a>
+            </p>
+            <div className="flex flex-col items-center gap-1 mt-1 opacity-70">
+              <p className="text-[9px] text-center font-medium" style={{ color: "var(--text-3)" }}>
+                PWC Trainees, Hons. & special students: Strictly follow instructions by the department.
+              </p>
+              <p className="text-[9px] text-center font-medium italic" style={{ color: "var(--text-3)" }}>
+                We do not take authority for any data mismatch.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
