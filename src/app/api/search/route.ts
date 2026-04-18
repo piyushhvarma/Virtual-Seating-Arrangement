@@ -1,11 +1,30 @@
 import { NextResponse } from "next/server";
 import studentsData from "@/data/students.json";
 import { getSeatCoordinates } from "@/lib/getSeatCoordinates";
-import { StudentInfo, LookupError } from "@/lib/studentLookup";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 const REG_NO_REGEX = /^23FE10[a-zA-Z]{3}\d{5}$/i;
 
 export async function GET(request: Request) {
+    // Basic IP-based Rate Limiting (100 requests per IP per minute)
+    // High enough so 10-20 students on the same College WiFi (NAT) won't get blocked.
+    // Low enough that a scraping script looping thousands of queries will get instantly cut off.
+    const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown-ip";
+    const rlInfo = checkRateLimit(ip, 100, 60 * 1000);
+
+    if (!rlInfo.success) {
+        return NextResponse.json(
+            { 
+                success: false, 
+                error: { 
+                    type: "RATE_LIMITED", 
+                    message: "Too many searches in a short time. Please wait a minute before trying again." 
+                } 
+            },
+            { status: 429 }
+        );
+    }
+
     const { searchParams } = new URL(request.url);
     const rawInput = searchParams.get("regNo");
 
