@@ -29,15 +29,15 @@ const dmMono = DM_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000"),
-  title: "MUJ Seating Plan | AIML Exam Portal",
+  title: "MUJ 3rd Year AIML | Exam Seating Portal",
   description:
-    "Check your MUJ seating plan instantly. Official exam seating arrangement for Manipal University Jaipur (Dept. of Artificial Intelligence and Machine Learning).",
+    "Official 3rd Year AIML Exam Seating Portal for Manipal University Jaipur. Check your exact room and seat for ETE & PE exams instantly.",
   keywords: [
     "muj seating plan",
     "muj exam seating",
     "manipal university jaipur seating list",
     "muj aiml seating",
-    "muj mid term seating",
+    "muj end term seating",
     "muj exam portal",
     "muj seating arrangement"
   ],
@@ -49,9 +49,9 @@ export const metadata: Metadata = {
     apple: "/muj-icon.png?v=5",
   },
   openGraph: {
-    title: "MUJ Seating Plan | Official Exam Portal",
-    description: "Find your MUJ room and exact seat index instantly. Access live schedules for AIML, IT, and Core Engineering examinations.",
-    siteName: "MUJ Exam Portal",
+    title: "MUJ 3rd Year AIML - Official Seating Portal",
+    description: "Dedicated exam seating portal for MUJ 3rd Year AIML students. Find your exact room and seat for ETE & PE exams instantly.",
+    siteName: "MUJ 3rd Year AIML Portal",
     images: [
       {
         url: "/logo.png",
@@ -65,8 +65,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "MUJ Seating Plan | Official Exam Portal",
-    description: "Find your MUJ room and exact seat instantly. Access live schedules securely.",
+    title: "MUJ 3rd Year AIML - Official Seating Portal",
+    description: "Fast, secured, and dedicated seating portal for MUJ 3rd Year AIML students.",
     images: ["/logo.png"],
   },
   verification: {
