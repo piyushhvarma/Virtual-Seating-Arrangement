@@ -9,7 +9,7 @@ def load_master_mapping():
     mapping = {}
     
     # 1. Load AIML File
-    f1 = "Program Elective Allocation.xlsx"
+    f1 = os.path.join("data", "master-lists", "Program Elective Allocation.xlsx")
     if os.path.exists(f1):
         try:
             all_sheets = pd.read_excel(f1, sheet_name=None)
@@ -25,32 +25,18 @@ def load_master_mapping():
         except Exception as e:
             print(f"Error AI: {e}")
 
-    # 2. Load IT File
-    f2 = "IT-PE-1 IV Sem Students List-Jan-May 2025.xlsx"
-    if os.path.exists(f2):
-        try:
-            all_sheets2 = pd.read_excel(f2, sheet_name=None, header=2)
-            for sheet_name, df in all_sheets2.items():
-                for rec in df.to_dict(orient="records"):
-                    reg = str(rec.get("Student Registration Number", "")).strip().upper()
-                    if reg and reg != "NAN" and "REG" not in reg:
-                        name = str(rec.get("Student Name", "Student")).strip()
-                        if name == "nan": name = "Student"
-                        mapping[reg] = { "name": name, "section": "" }
-        except Exception as e:
-            print(f"Error IT: {e}")
-            
+
     print(f"Successfully loaded {len(mapping)} global master records.")
     return mapping
 
-def parse_seating_pdfs(pdf_dir=".", output_json="src/data/students.json"):
+def parse_seating_pdfs(pdf_dir=os.path.join("data", "pdfs", "ete"), output_json="src/data/students.json"):
     master_mapping = load_master_mapping()
 
     output_data = {
         "examMeta": {
-            "title": "MTE FEB 2026 – B.Tech Exams",
+            "title": "ETE APR 2026 – B.Tech Exams",
             "department": "Engineering Portals",
-            "season": "Mid-Term Examination"
+            "season": "End-Term Examination"
         },
         "students": {}
     }
@@ -131,8 +117,8 @@ def parse_seating_pdfs(pdf_dir=".", output_json="src/data/students.json"):
                                             "totalStudentsInRoom": total_students,
                                             "rows": rows_count,
                                             "cols": cols_count,
-                                            "examDate": "20-02-2026",
-                                            "examTime": "01:30 PM – 03:00 PM"
+                                            "examDate": "TBD",
+                                            "examTime": "TBD"
                                         }
                                         
                                         if reg_no not in output_data["students"]:
