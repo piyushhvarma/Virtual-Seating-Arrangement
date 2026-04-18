@@ -96,7 +96,7 @@ function SearchBar({ onSearch, isLoading }: { onSearch: (r: string) => void; isL
 
       <div className="flex flex-wrap gap-1.5 mt-3 items-center">
         <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--text-3)" }}>Quick Prefix:</span>
-        {["23FE10CAI", "23FE10ITE", "23FE10CCE"].map(prefix => (
+        {["23FE10CAI00"].map(prefix => (
           <button key={prefix} onClick={() => { 
             setVal(prefix); 
             document.getElementById("reg-input")?.focus(); 
@@ -417,7 +417,7 @@ export default function Page() {
             animate={{ opacity: [1, 0.55, 1] }} transition={{ duration: 2.2, repeat: Infinity }}
             initial={{ opacity: 0 }}>
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            MTE FEB 2026 · Seats Allocated
+            ETE APR 2026 · Seats Allocated
           </motion.div>
 
           {/* Heading */}
