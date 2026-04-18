@@ -90,7 +90,7 @@ export default function SearchBar({ onSearch, isLoading = false }: SearchBarProp
             {/* Quick Prefixes */}
             <div className="flex flex-wrap gap-1.5 mt-3 items-center">
                 <span className="text-[10px] tracking-wide font-bold uppercase" style={{ color: "var(--text-3)", fontFamily: "var(--font-head)" }}>Quick Prefix:</span>
-                {["23FE10CAI", "23FE10ITE", "23FE10CCE"].map((prefix) => (
+                {["23FE10CAI00", "23FE10ITE", "23FE10CCE"].map((prefix) => (
                     <button
                         key={prefix}
                         onClick={() => { 
