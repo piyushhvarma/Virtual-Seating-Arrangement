@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Space_Grotesk, DM_Sans, DM_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { Analytics } from "@vercel/analytics/next";
+import { PostHogProvider } from "@/providers/PostHogProvider";
 import "./globals.css";
 
 // Premium fonts
@@ -88,7 +89,9 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange={false}
         >
-          {children}
+          <PostHogProvider>
+            {children}
+          </PostHogProvider>
         </ThemeProvider>
         <Analytics />
       </body>

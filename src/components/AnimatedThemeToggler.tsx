@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { Moon, Sun } from "lucide-react"
 import { flushSync } from "react-dom"
 import { useTheme } from "next-themes"
+import { usePostHog } from 'posthog-js/react'
 
 import { cn } from "@/lib/utils"
 
@@ -17,6 +18,7 @@ export const AnimatedThemeToggler = ({
   ...props
 }: AnimatedThemeTogglerProps) => {
   const { setTheme } = useTheme()
+  const posthog = usePostHog()
   const [isDark, setIsDark] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
 
@@ -55,6 +57,7 @@ export const AnimatedThemeToggler = ({
       setIsDark(newTheme)
       document.documentElement.classList.toggle("dark", newTheme)
       setTheme(newTheme ? "dark" : "light")
+      posthog.capture('theme_toggled', { theme: newTheme ? "dark" : "light" })
     }
 
     if (typeof document.startViewTransition !== "function") {

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect } from "react";
+import { usePostHog } from 'posthog-js/react'
 
 import { lookupStudent, type StudentInfo, type LookupError } from "@/lib/studentLookup";
 import { parseSeatLabel } from "@/lib/getSeatCoordinates";
@@ -361,6 +362,7 @@ export default function Page() {
   const [state, setState] = useState<SearchState>({ status: "idle" });
   const [selectedExam, setSelectedExam] = useState<StudentInfo | null>(null);
   const seatMapRef = useRef<HTMLDivElement>(null);
+  const posthog = usePostHog();
 
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -369,19 +371,44 @@ export default function Page() {
   const handleSearch = useCallback(async (regNo: string) => {
     setState({ status: "loading" });
     const result = await lookupStudent(regNo);
+    
+    // Tracking
+    if (result.success) {
+      // Identify the user by their registration number for deep analytics
+      posthog.identify(regNo, {
+        name: result.name,
+      });
+      posthog.capture('student_search_success', {
+        regNo,
+        name: result.name,
+        exam_count: result.data.length
+      });
+    } else {
+      posthog.capture('student_search_fail', {
+        regNo,
+        error_type: result.error.type,
+        error_message: result.error.message
+      });
+    }
+
     setState(result.success
       ? { status: "found", name: result.name, data: result.data }
       : { status: "error", error: result.error }
     );
     setSelectedExam(null);
-  }, []);
+  }, [posthog]);
 
   const handleLocate = useCallback((exam: StudentInfo) => {
+    posthog.capture('seat_located', {
+      subject: exam.subject,
+      room: exam.room,
+      seat: exam.seatLabel
+    });
     setSelectedExam(exam);
     setTimeout(() => {
       seatMapRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 50);
-  }, []);
+  }, [posthog]);
 
   return (
     <div className="relative min-h-dvh" style={{ background: "var(--bg)" }}>
