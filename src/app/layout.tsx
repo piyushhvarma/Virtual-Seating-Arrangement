@@ -3,6 +3,7 @@ import { Space_Grotesk, DM_Sans, DM_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { Analytics } from "@vercel/analytics/next";
 import { PostHogProvider } from "@/providers/PostHogProvider";
+import PostHogPageView from "@/components/PostHogPageView";
 import "./globals.css";
 import Script from "next/script";
 
@@ -100,6 +101,7 @@ export default function RootLayout({
           disableTransitionOnChange={false}
         >
           <PostHogProvider>
+            <PostHogPageView />
             {children}
           </PostHogProvider>
         </ThemeProvider>
