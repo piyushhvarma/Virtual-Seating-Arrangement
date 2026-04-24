@@ -31,10 +31,10 @@ const dmMono = DM_Mono({
 
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000"),
-  title: "MUJ 3rd Year AIML | Exam Seating Portal",
+  metadataBase: new URL("https://muj-aiml-seating.vercel.app"),
+  title: "Unofficial Seating Portal - MUJ 3rd Year AIML",
   description:
-    "Official 3rd Year AIML Exam Seating Portal for Manipal University Jaipur. Check your exact room and seat for ETE & PE exams instantly.",
+    "Find your exact room and seat for ETE & PE exams instantly. Dedicated exam seating portal for MUJ 3rd Year AIML students.",
   keywords: [
     "muj seating plan",
     "muj exam seating",
@@ -52,15 +52,16 @@ export const metadata: Metadata = {
     apple: "/muj-icon.png?v=5",
   },
   openGraph: {
-    title: "MUJ 3rd Year AIML - Official Seating Portal",
-    description: "Dedicated exam seating portal for MUJ 3rd Year AIML students. Find your exact room and seat for ETE & PE exams instantly.",
-    siteName: "MUJ 3rd Year AIML Portal",
+    title: "Unofficial Seating Portal - MUJ 3rd Year AIML",
+    description: "Find your exact room and seat for ETE & PE exams instantly. Dedicated exam seating portal for MUJ 3rd Year AIML students.",
+    url: "https://muj-aiml-seating.vercel.app/",
+    siteName: "Unofficial Seating Portal",
     images: [
       {
-        url: "/logo.png",
+        url: "/meta-tag-seating.png",
         width: 1200,
         height: 630,
-        alt: "MUJ Seating Portal Official Cover",
+        alt: "Unofficial Seating Portal - MUJ 3rd Year AIML",
       },
     ],
     type: "website",
@@ -68,9 +69,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "MUJ 3rd Year AIML - Official Seating Portal",
-    description: "Fast, secured, and dedicated seating portal for MUJ 3rd Year AIML students.",
-    images: ["/logo.png"],
+    title: "Unofficial Seating Portal - MUJ 3rd Year AIML",
+    description: "Find your exact room and seat for ETE & PE exams instantly. Dedicated exam seating portal for MUJ 3rd Year AIML students.",
+    images: ["/meta-tag-seating.png"],
   },
   verification: {
     google: "TVYOMFr3wJQ8k1GfeW--_Yq_dJWr-Cxlfwn4BJiq1Xk",
