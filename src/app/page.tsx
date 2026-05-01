@@ -52,8 +52,19 @@ function SearchBar({ onSearch, isLoading }: { onSearch: (r: string) => void; isL
   const [val, setVal] = useState("");
   const [focused, setFocused] = useState(false);
 
+  useEffect(() => {
+    const savedReg = localStorage.getItem("last_searched_reg");
+    if (savedReg) {
+      setVal(savedReg);
+    }
+  }, []);
+
   const submit = useCallback(() => {
-    if (val.trim()) onSearch(val.trim());
+    const trimmed = val.trim();
+    if (trimmed) {
+      localStorage.setItem("last_searched_reg", trimmed);
+      onSearch(trimmed);
+    }
   }, [val, onSearch]);
 
   return (
