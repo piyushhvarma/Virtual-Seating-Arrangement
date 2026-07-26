@@ -113,10 +113,18 @@ export default function ExamsPage() {
           "PE Section", "PE Sec", "PESection", "PESec",
           "Elective Section", "Elective Sec", "Section", "Sec",
           "pe_section", "pe_sec", "elective_section", "section",
+          "Core Section", "Core Sec", "Class", "Batch", "Group",
+          "Student Section", "Subject Section",
         ];
 
         function looksLikeMujRegNo(val: string): boolean {
           return /^\d{2}FE\d{2}[A-Z0-9]{2,6}\d{3,6}$/i.test(val.trim());
+        }
+
+        // Typical sections: "A", "B1", "X", usually 1-4 uppercase/numeric chars, never a reg number.
+        function looksLikeSection(val: string): boolean {
+          const s = val.trim();
+          return s.length >= 1 && s.length <= 4 && /^[a-zA-Z0-9]+$/.test(s) && !looksLikeMujRegNo(s);
         }
 
         function pickField(row: Record<string, any>, aliases: string[]): string {
@@ -136,11 +144,39 @@ export default function ExamsPage() {
           const aliasMatch = REG_ALIASES.find((a) =>
             allKeys.some((k) => k.trim().toLowerCase() === a.toLowerCase())
           );
-          if (aliasMatch) return aliasMatch;
+          if (aliasMatch) {
+            return allKeys.find((k) => k.trim().toLowerCase() === aliasMatch.toLowerCase()) || null;
+          }
           for (const row of rows.slice(0, 10)) {
             for (const key of Object.keys(row)) {
               if (looksLikeMujRegNo(String(row[key] ?? "").trim())) return key;
             }
+          }
+          return null;
+        }
+
+        function detectPeCol(rows: Record<string, any>[], excludeCol: string | null): string | null {
+          const allKeys = Object.keys(rows[0] || {});
+          const aliasMatch = PE_ALIASES.find((a) =>
+            allKeys.some((k) => k.trim().toLowerCase() === a.toLowerCase())
+          );
+          if (aliasMatch) {
+            const actualCol = allKeys.find((k) => k.trim().toLowerCase() === aliasMatch.toLowerCase());
+            if (actualCol && actualCol !== excludeCol) return actualCol;
+          }
+          // Value-based fallback: look for a column where majority of non-empty values look like sections
+          for (const key of allKeys) {
+            if (key === excludeCol) continue;
+            let sectionCount = 0;
+            let total = 0;
+            for (const row of rows.slice(0, 20)) {
+              const val = String(row[key] ?? "").trim();
+              if (val) {
+                total++;
+                if (looksLikeSection(val)) sectionCount++;
+              }
+            }
+            if (total > 0 && sectionCount / total >= 0.5) return key;
           }
           return null;
         }
@@ -152,14 +188,20 @@ export default function ExamsPage() {
 
           const detectedRegCol = detectRegCol(rows);
           if (!detectedRegCol) {
-            colWarning = `Sheet "${sheetName}": no reg-no column. Columns: ${Object.keys(rows[0]).join(", ")}`;
+            colWarning = (colWarning ? colWarning + " | " : "") + `Sheet "${sheetName}": no reg-no col found.`;
             continue;
+          }
+
+          const detectedPeCol = detectPeCol(rows, detectedRegCol);
+          if (!detectedPeCol) {
+            colWarning = (colWarning ? colWarning + " | " : "") + `Sheet "${sheetName}": no section col found (students enrolled without section).`;
           }
 
           for (const row of rows) {
             const raw = pickField(row, [detectedRegCol, ...REG_ALIASES]).toUpperCase();
             if (!raw || !looksLikeMujRegNo(raw)) continue;
-            const peSection = pickField(row, PE_ALIASES).toUpperCase() || "";
+            const aliasesToTry = detectedPeCol ? [detectedPeCol, ...PE_ALIASES] : PE_ALIASES;
+            const peSection = pickField(row, aliasesToTry).toUpperCase() || "";
             enrolledMap.set(raw, peSection);
           }
         }
