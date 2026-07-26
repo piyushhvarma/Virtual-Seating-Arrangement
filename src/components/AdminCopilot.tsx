@@ -10,8 +10,9 @@ import { useAdmin } from "@/providers/AdminProvider";
 export function AdminCopilot() {
     const { token, yearLabel } = useAdmin();
     const [isOpen, setIsOpen] = useState(false);
+
     const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
-        // @ts-ignore
+        // @ts-expect-error bypass SDK config signature bug
         api: "/api/chat",
         headers: { Authorization: `Bearer ${token}` },
     }) as any;
@@ -123,7 +124,6 @@ export function AdminCopilot() {
                             )}
                         </div>
 
-                        {/* Input Form */}
                         <form
                             onSubmit={handleSubmit}
                             className="p-4 shadow-[0_-4px_10px_rgba(0,0,0,0.03)]"
@@ -139,7 +139,7 @@ export function AdminCopilot() {
                             >
                                 <input
                                     type="text"
-                                    value={input}
+                                    value={input || ""}
                                     onChange={handleInputChange}
                                     placeholder="Ask Admin Copilot..."
                                     className="flex-1 bg-transparent py-1.5 text-sm font-semibold focus:outline-none placeholder:opacity-50"
@@ -147,11 +147,11 @@ export function AdminCopilot() {
                                 />
                                 <button
                                     type="submit"
-                                    disabled={!input.trim() || isLoading}
+                                    disabled={!(input || "").trim() || isLoading}
                                     className="p-1.5 rounded-lg transition-transform hover:scale-105"
                                     style={{
-                                        color: input.trim() && !isLoading ? "#8b5cf6" : "var(--text-3)",
-                                        opacity: input.trim() && !isLoading ? 1 : 0.4,
+                                        color: (input || "").trim() && !isLoading ? "#8b5cf6" : "var(--text-3)",
+                                        opacity: (input || "").trim() && !isLoading ? 1 : 0.4,
                                     }}
                                 >
                                     <Send size={18} />
