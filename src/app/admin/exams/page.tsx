@@ -18,7 +18,7 @@ import {
   Tag,
 } from "lucide-react";
 import { useAdmin } from "@/providers/AdminProvider";
-import type { Subject, SubjectType } from "@/lib/adminTypes";
+import type { Subject, SubjectType, ElectiveEnrollment } from "@/lib/adminTypes";
 import { generateId } from "@/lib/adminTypes";
 
 export default function ExamsPage() {
@@ -34,7 +34,7 @@ export default function ExamsPage() {
   const [formTime, setFormTime] = useState("1:30 PM – 4:30 PM");
   const [formType, setFormType] = useState<SubjectType>("core");
   const [formSections, setFormSections] = useState<string[]>([]);
-  const [formEnrolled, setFormEnrolled] = useState<string[]>([]);
+  const [formEnrolled, setFormEnrolled] = useState<ElectiveEnrollment[]>([]);
   const [enrollUploadStatus, setEnrollUploadStatus] = useState<string | null>(null);
 
   // Available sections from student data
@@ -90,7 +90,7 @@ export default function ExamsPage() {
     );
   };
 
-  // ── Elective enrollment Excel upload ─────────────
+  // ── Elective enrollment Excel upload ────────────────
   const handleElectiveUpload = useCallback(
     async (file: File) => {
       setEnrollUploadStatus("Parsing...");
@@ -99,7 +99,7 @@ export default function ExamsPage() {
         const buffer = await file.arrayBuffer();
         const workbook = XLSX.read(buffer, { type: "array" });
 
-        const enrolled = new Set<string>();
+        const enrolledMap = new Map<string, string>(); // regNo -> peSection
         let colWarning: string | null = null;
 
         const REG_ALIASES = [
@@ -109,29 +109,34 @@ export default function ExamsPage() {
           "Regd No", "RegdNo", "Roll No", "RollNo",
           "registration_no", "reg_no", "enrollment_no", "roll_no",
         ];
+        const PE_ALIASES = [
+          "PE Section", "PE Sec", "PESection", "PESec",
+          "Elective Section", "Elective Sec", "Section", "Sec",
+          "pe_section", "pe_sec", "elective_section", "section",
+        ];
 
         function looksLikeMujRegNo(val: string): boolean {
           return /^\d{2}FE\d{2}[A-Z0-9]{2,6}\d{3,6}$/i.test(val.trim());
         }
 
-        function pickRegNo(row: Record<string, any>, detectedCol: string): string {
-          // Try detected column first, then aliases
-          const keys = [detectedCol, ...REG_ALIASES];
-          for (const key of keys) {
-            const val = String(row[key] ?? "").trim();
-            if (val) return val;
+        function pickField(row: Record<string, any>, aliases: string[]): string {
+          for (const alias of aliases) {
+            if (alias in row && String(row[alias]).trim()) return String(row[alias]).trim();
+          }
+          const keys = Object.keys(row);
+          for (const alias of aliases) {
+            const match = keys.find((k) => k.trim().toLowerCase() === alias.toLowerCase());
+            if (match && String(row[match]).trim()) return String(row[match]).trim();
           }
           return "";
         }
 
         function detectRegCol(rows: Record<string, any>[]): string | null {
-          // 1. Alias match (case-insensitive)
           const allKeys = Object.keys(rows[0] || {});
           const aliasMatch = REG_ALIASES.find((a) =>
             allKeys.some((k) => k.trim().toLowerCase() === a.toLowerCase())
           );
           if (aliasMatch) return aliasMatch;
-          // 2. Scan values in first 10 rows
           for (const row of rows.slice(0, 10)) {
             for (const key of Object.keys(row)) {
               if (looksLikeMujRegNo(String(row[key] ?? "").trim())) return key;
@@ -145,29 +150,41 @@ export default function ExamsPage() {
           const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: "" });
           if (rows.length === 0) continue;
 
-          const detectedCol = detectRegCol(rows);
-          if (!detectedCol) {
-            colWarning = `Sheet "${sheetName}": no reg-no column found. Columns: ${Object.keys(rows[0]).join(", ")}`;
+          const detectedRegCol = detectRegCol(rows);
+          if (!detectedRegCol) {
+            colWarning = `Sheet "${sheetName}": no reg-no column. Columns: ${Object.keys(rows[0]).join(", ")}`;
             continue;
           }
 
           for (const row of rows) {
-            const raw = pickRegNo(row, detectedCol).toUpperCase();
+            const raw = pickField(row, [detectedRegCol, ...REG_ALIASES]).toUpperCase();
             if (!raw || !looksLikeMujRegNo(raw)) continue;
-            enrolled.add(raw);
+            const peSection = pickField(row, PE_ALIASES).toUpperCase() || "";
+            enrolledMap.set(raw, peSection);
           }
         }
 
-        const enrolledArr = [...enrolled].sort();
+        const enrolledArr: ElectiveEnrollment[] = [...enrolledMap.entries()]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([regNo, peSection]) => ({ regNo, peSection }));
+
         setFormEnrolled(enrolledArr);
 
         if (colWarning) {
           setEnrollUploadStatus(`⚠️ ${colWarning}`);
         } else {
-          // Show how many matched master list vs total found
-          const matched = enrolledArr.filter((r) => data.students[r]).length;
+          const matched = enrolledArr.filter((e) => data.students[e.regNo]).length;
+          // Summary of PE sections
+          const sectionCounts = new Map<string, number>();
+          enrolledArr.forEach((e) => {
+            const s = e.peSection || "(no section)";
+            sectionCounts.set(s, (sectionCounts.get(s) ?? 0) + 1);
+          });
+          const secSummary = [...sectionCounts.entries()]
+            .map(([s, n]) => `${s}=${n}`)
+            .join(", ");
           setEnrollUploadStatus(
-            `✅ ${enrolledArr.length} reg numbers loaded (${matched} matched master list, ${enrolledArr.length - matched} new)`
+            `✅ ${enrolledArr.length} students loaded (${matched} in master list) • sections: ${secSummary || "none"}`
           );
         }
       } catch (err) {
@@ -220,7 +237,7 @@ export default function ExamsPage() {
   // Count students for a subject
   const countStudents = (subject: Subject) => {
     if (subject.type === "elective" && subject.enrolledStudents?.length > 0) {
-      return subject.enrolledStudents.filter((r) => data.students[r]).length;
+      return subject.enrolledStudents.filter((e) => data.students[e.regNo]).length;
     }
     return Object.values(data.students).filter((s) =>
       subject.sections.includes(s.section)
@@ -236,6 +253,21 @@ export default function ExamsPage() {
     rooms.forEach((r) => r.assignments.forEach((a) => assigned.add(a.regNo)));
     return assigned.size;
   };
+
+  // ── Coverage check: students not in any elective ──────
+  const electiveCoverage = useMemo(() => {
+    const electiveSubjects = data.subjects.filter((s) => s.type === "elective");
+    if (electiveSubjects.length === 0) return null;
+
+    const covered = new Set<string>();
+    electiveSubjects.forEach((s) =>
+      s.enrolledStudents.forEach((e) => covered.add(e.regNo))
+    );
+
+    const allRegNos = Object.keys(data.students);
+    const uncovered = allRegNos.filter((r) => !covered.has(r));
+    return { covered: covered.size, total: allRegNos.length, uncovered };
+  }, [data.subjects, data.students]);
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -466,16 +498,44 @@ export default function ExamsPage() {
               {/* Sections or Enrollment info */}
               <div className="flex flex-wrap gap-1">
                 {isElective ? (
-                  <span
-                    className="text-[10px] font-bold px-2 py-0.5 rounded-md"
-                    style={{
-                      background: "rgba(139,92,246,0.08)",
-                      color: "#8b5cf6",
-                      border: "1px solid rgba(139,92,246,0.2)",
-                    }}
-                  >
-                    {subject.enrolledStudents?.length || 0} enrolled via Excel
-                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {(() => {
+                      // Build PE section breakdown
+                      const secMap = new Map<string, number>();
+                      (subject.enrolledStudents || []).forEach((e) => {
+                        const s = e.peSection || "(no sec)";
+                        secMap.set(s, (secMap.get(s) ?? 0) + 1);
+                      });
+                      const entries = [...secMap.entries()];
+                      if (entries.length === 0) {
+                        return (
+                          <span
+                            className="text-[10px] font-bold px-2 py-0.5 rounded-md"
+                            style={{
+                              background: "rgba(139,92,246,0.08)",
+                              color: "#8b5cf6",
+                              border: "1px solid rgba(139,92,246,0.2)",
+                            }}
+                          >
+                            {subject.enrolledStudents?.length || 0} enrolled
+                          </span>
+                        );
+                      }
+                      return entries.map(([sec, count]) => (
+                        <span
+                          key={sec}
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-md"
+                          style={{
+                            background: "rgba(139,92,246,0.08)",
+                            color: "#8b5cf6",
+                            border: "1px solid rgba(139,92,246,0.2)",
+                          }}
+                        >
+                          PE-{sec}: {count}
+                        </span>
+                      ));
+                    })()}
+                  </div>
                 ) : (
                   <>
                     {subject.sections.map((sec) => (
@@ -548,6 +608,71 @@ export default function ExamsPage() {
         </motion.div>
       )}
 
+      {/* Coverage Check Panel */}
+      {electiveCoverage && (
+        <motion.div
+          className="card p-5 space-y-3"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div className="flex items-center justify-between">
+            <h2
+              className="text-sm font-black uppercase tracking-wider"
+              style={{ color: "var(--text-2)", fontFamily: "var(--font-head)" }}
+            >
+              Elective Coverage Check
+            </h2>
+            <span
+              className="text-[11px] font-bold px-2 py-1 rounded-lg"
+              style={{
+                background:
+                  electiveCoverage.uncovered.length === 0
+                    ? "rgba(16,185,129,0.1)"
+                    : "rgba(245,158,11,0.1)",
+                color:
+                  electiveCoverage.uncovered.length === 0
+                    ? "#10b981"
+                    : "#f59e0b",
+                border: `1px solid ${electiveCoverage.uncovered.length === 0
+                  ? "rgba(16,185,129,0.3)"
+                  : "rgba(245,158,11,0.3)"
+                  }`,
+              }}
+            >
+              {electiveCoverage.covered}/{electiveCoverage.total} students covered
+            </span>
+          </div>
+
+          {electiveCoverage.uncovered.length === 0 ? (
+            <p className="text-sm font-semibold" style={{ color: "#10b981" }}>
+              ✅ All {electiveCoverage.total} students are enrolled in at least one elective.
+            </p>
+          ) : (
+            <>
+              <p className="text-[11px] font-semibold" style={{ color: "#f59e0b" }}>
+                ⚠️ {electiveCoverage.uncovered.length} students not enrolled in any elective:
+              </p>
+              <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
+                {electiveCoverage.uncovered.map((regNo) => (
+                  <span
+                    key={regNo}
+                    className="text-[10px] font-bold px-2 py-0.5 rounded-md"
+                    style={{
+                      background: "rgba(245,158,11,0.08)",
+                      color: "#f59e0b",
+                      border: "1px solid rgba(245,158,11,0.2)",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  >
+                    {regNo}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+        </motion.div>
+      )}
+
       {/* Add/Edit Subject Modal */}
       <AnimatePresence>
         {showForm && (
@@ -607,8 +732,8 @@ export default function ExamsPage() {
                         color:
                           formType === "core" ? "#3b82f6" : "var(--text-2)",
                         border: `2px solid ${formType === "core"
-                            ? "#3b82f6"
-                            : "var(--border)"
+                          ? "#3b82f6"
+                          : "var(--border)"
                           }`,
                       }}
                     >
@@ -637,8 +762,8 @@ export default function ExamsPage() {
                             ? "#8b5cf6"
                             : "var(--text-2)",
                         border: `2px solid ${formType === "elective"
-                            ? "#8b5cf6"
-                            : "var(--border)"
+                          ? "#8b5cf6"
+                          : "var(--border)"
                           }`,
                       }}
                     >
@@ -790,8 +915,8 @@ export default function ExamsPage() {
                                 ? "var(--pill-text)"
                                 : "var(--text-2)",
                               border: `2px solid ${formSections.includes(sec)
-                                  ? "var(--card-border)"
-                                  : "var(--border)"
+                                ? "var(--card-border)"
+                                : "var(--border)"
                                 }`,
                             }}
                           >
@@ -926,10 +1051,17 @@ export default function ExamsPage() {
                         border: "1px solid var(--border)",
                       }}
                     >
-                      <strong>Tip:</strong> Upload the PE/OE allocation
-                      sheet from your department. The system will match
-                      Registration Numbers against the master student list
-                      for this year.
+                      <strong>Expected columns:</strong>{" "}
+                      <span style={{ fontFamily: "var(--font-mono)" }}>
+                        Registration No
+                      </span>{" "}
+                      +{" "}
+                      <span style={{ fontFamily: "var(--font-mono)" }}>
+                        PE Section
+                      </span>
+                      . Column names are auto-detected. PE section is stored
+                      per-subject — a student can have different PE sections for
+                      different electives.
                     </p>
                   </div>
                 )}
