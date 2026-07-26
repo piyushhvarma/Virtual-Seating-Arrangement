@@ -15,9 +15,11 @@
 export interface MasterStudent {
   regNo: string;
   name: string;
-  section: string;
+  section: string;       // Core section (e.g. "A")
+  peSection?: string;    // Program Elective section (e.g. "B") — optional
   year: number;
 }
+
 
 // ── Subject ────────────────────────────────────────
 export type SubjectType = "core" | "elective";

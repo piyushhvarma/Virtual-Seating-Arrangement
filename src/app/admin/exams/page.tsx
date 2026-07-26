@@ -100,39 +100,76 @@ export default function ExamsPage() {
         const workbook = XLSX.read(buffer, { type: "array" });
 
         const enrolled = new Set<string>();
+        let colWarning: string | null = null;
+
+        const REG_ALIASES = [
+          "Registration No", "Reg No", "RegNo", "Registration Number",
+          "Enrollment No", "Enroll No", "EnrollmentNo",
+          "Student Reg No", "StudentRegNo", "StudentRegtNo",
+          "Regd No", "RegdNo", "Roll No", "RollNo",
+          "registration_no", "reg_no", "enrollment_no", "roll_no",
+        ];
+
+        function looksLikeMujRegNo(val: string): boolean {
+          return /^\d{2}FE\d{2}[A-Z0-9]{2,6}\d{3,6}$/i.test(val.trim());
+        }
+
+        function pickRegNo(row: Record<string, any>, detectedCol: string): string {
+          // Try detected column first, then aliases
+          const keys = [detectedCol, ...REG_ALIASES];
+          for (const key of keys) {
+            const val = String(row[key] ?? "").trim();
+            if (val) return val;
+          }
+          return "";
+        }
+
+        function detectRegCol(rows: Record<string, any>[]): string | null {
+          // 1. Alias match (case-insensitive)
+          const allKeys = Object.keys(rows[0] || {});
+          const aliasMatch = REG_ALIASES.find((a) =>
+            allKeys.some((k) => k.trim().toLowerCase() === a.toLowerCase())
+          );
+          if (aliasMatch) return aliasMatch;
+          // 2. Scan values in first 10 rows
+          for (const row of rows.slice(0, 10)) {
+            for (const key of Object.keys(row)) {
+              if (looksLikeMujRegNo(String(row[key] ?? "").trim())) return key;
+            }
+          }
+          return null;
+        }
 
         for (const sheetName of workbook.SheetNames) {
           const sheet = workbook.Sheets[sheetName];
-          const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet);
+          const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: "" });
+          if (rows.length === 0) continue;
+
+          const detectedCol = detectRegCol(rows);
+          if (!detectedCol) {
+            colWarning = `Sheet "${sheetName}": no reg-no column found. Columns: ${Object.keys(rows[0]).join(", ")}`;
+            continue;
+          }
 
           for (const row of rows) {
-            const regNo = String(
-              row["Registration No"] ||
-                row["Reg No"] ||
-                row["RegNo"] ||
-                row["Registration Number"] ||
-                row["registration_no"] ||
-                row["reg_no"] ||
-                ""
-            )
-              .trim()
-              .toUpperCase();
-
-            if (!regNo || !regNo.match(/^\d{2}FE\d{2}[A-Z]{3}\d{5}$/i))
-              continue;
-
-            // Only enroll students that exist in our master list
-            if (data.students[regNo]) {
-              enrolled.add(regNo);
-            }
+            const raw = pickRegNo(row, detectedCol).toUpperCase();
+            if (!raw || !looksLikeMujRegNo(raw)) continue;
+            enrolled.add(raw);
           }
         }
 
         const enrolledArr = [...enrolled].sort();
         setFormEnrolled(enrolledArr);
-        setEnrollUploadStatus(
-          `✅ ${enrolledArr.length} students enrolled from file (${enrolled.size} matched)`
-        );
+
+        if (colWarning) {
+          setEnrollUploadStatus(`⚠️ ${colWarning}`);
+        } else {
+          // Show how many matched master list vs total found
+          const matched = enrolledArr.filter((r) => data.students[r]).length;
+          setEnrollUploadStatus(
+            `✅ ${enrolledArr.length} reg numbers loaded (${matched} matched master list, ${enrolledArr.length - matched} new)`
+          );
+        }
       } catch (err) {
         setEnrollUploadStatus(
           `❌ Error: ${err instanceof Error ? err.message : "Failed to parse"}`
@@ -569,11 +606,10 @@ export default function ExamsPage() {
                             : "var(--input-bg)",
                         color:
                           formType === "core" ? "#3b82f6" : "var(--text-2)",
-                        border: `2px solid ${
-                          formType === "core"
+                        border: `2px solid ${formType === "core"
                             ? "#3b82f6"
                             : "var(--border)"
-                        }`,
+                          }`,
                       }}
                     >
                       <Users size={13} />
@@ -600,11 +636,10 @@ export default function ExamsPage() {
                           formType === "elective"
                             ? "#8b5cf6"
                             : "var(--text-2)",
-                        border: `2px solid ${
-                          formType === "elective"
+                        border: `2px solid ${formType === "elective"
                             ? "#8b5cf6"
                             : "var(--border)"
-                        }`,
+                          }`,
                       }}
                     >
                       <Tag size={13} />
@@ -754,11 +789,10 @@ export default function ExamsPage() {
                               color: formSections.includes(sec)
                                 ? "var(--pill-text)"
                                 : "var(--text-2)",
-                              border: `2px solid ${
-                                formSections.includes(sec)
+                              border: `2px solid ${formSections.includes(sec)
                                   ? "var(--card-border)"
                                   : "var(--border)"
-                              }`,
+                                }`,
                             }}
                           >
                             {formSections.includes(sec) && (
