@@ -18,6 +18,14 @@ import {
 import { useAdmin } from "@/providers/AdminProvider";
 import type { MasterStudent } from "@/lib/adminTypes";
 import { getYearFromRegNo } from "@/lib/adminTypes";
+import {
+  REG_ALIASES,
+  NAME_ALIASES,
+  SECTION_ALIASES,
+  looksLikeMujRegNo,
+  detectRegCol,
+  pickField,
+} from "@/lib/excelParser";
 
 export default function StudentsPage() {
   const { data, setData, saveData, yearLabel } = useAdmin();
@@ -72,85 +80,6 @@ export default function StudentsPage() {
         };
         let addedCount = 0;
 
-        // Known registration number column aliases (case-insensitive lookup done below)
-        const REG_ALIASES = [
-          "Registration No",
-          "Reg No",
-          "RegNo",
-          "Registration Number",
-          "Enrollment No",
-          "Enroll No",
-          "EnrollmentNo",
-          "Student Reg No",
-          "StudentRegNo",
-          "StudentRegtNo",
-          "Regd No",
-          "RegdNo",
-          "Roll No",
-          "RollNo",
-          "registration_no",
-          "reg_no",
-          "enrollment_no",
-          "roll_no",
-        ];
-
-        const NAME_ALIASES = [
-          "Student Name",
-          "Name",
-          "Full Name",
-          "FullName",
-          "StudentName",
-          "student_name",
-          "name",
-          "full_name",
-        ];
-
-        const SECTION_ALIASES = [
-          "Core Section",
-          "Section",
-          "Sec",
-          "core_section",
-          "section",
-          "sec",
-        ];
-
-        // Helper: find a value in a row by trying a list of aliases
-        function pickField(row: Record<string, any>, aliases: string[]): string {
-          // 1. Exact match
-          for (const alias of aliases) {
-            if (alias in row) return String(row[alias] ?? "");
-          }
-          // 2. Case-insensitive match
-          const keys = Object.keys(row);
-          for (const alias of aliases) {
-            const match = keys.find(
-              (k) => k.trim().toLowerCase() === alias.toLowerCase()
-            );
-            if (match) return String(row[match] ?? "");
-          }
-          return "";
-        }
-
-        // Helper: detect if a string looks like a MUJ reg number
-        // Flexible: starts with 2 digits + FE, followed by any alphanumerics
-        function looksLikeMujRegNo(val: string): boolean {
-          return /^\d{2}FE\d{2}[A-Z0-9]{2,6}\d{3,6}$/i.test(val.trim());
-        }
-
-        // Helper: auto-detect which column holds reg numbers by scanning first rows
-        function detectRegNoColumn(
-          rows: Record<string, any>[]
-        ): string | null {
-          const sample = rows.slice(0, 10);
-          for (const row of sample) {
-            for (const key of Object.keys(row)) {
-              const val = String(row[key] ?? "").trim();
-              if (looksLikeMujRegNo(val)) return key;
-            }
-          }
-          return null;
-        }
-
         for (const sheetName of workbook.SheetNames) {
           const sheet = workbook.Sheets[sheetName];
           const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, {
@@ -160,15 +89,11 @@ export default function StudentsPage() {
           if (rows.length === 0) continue;
 
           // Detect column names — prefer alias match, fall back to auto-detect
-          const allKeys = Object.keys(rows[0]);
-          const detectedRegCol =
-            REG_ALIASES.find((a) =>
-              allKeys.some((k) => k.trim().toLowerCase() === a.toLowerCase())
-            ) || detectRegNoColumn(rows);
+          const detectedRegCol = detectRegCol(rows);
 
           if (!detectedRegCol) {
             setUploadStatus(
-              `⚠️ Sheet "${sheetName}": Couldn't find a reg-no column. Columns found: ${allKeys.join(", ")}`
+              `⚠️ Sheet "${sheetName}": Couldn't find a reg-no column. Columns found: ${Object.keys(rows[0]).join(", ")}`
             );
             continue;
           }

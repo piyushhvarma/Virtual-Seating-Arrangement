@@ -20,6 +20,14 @@ import {
 import { useAdmin } from "@/providers/AdminProvider";
 import type { Subject, SubjectType, ElectiveEnrollment } from "@/lib/adminTypes";
 import { generateId } from "@/lib/adminTypes";
+import {
+  REG_ALIASES,
+  PE_ALIASES,
+  looksLikeMujRegNo,
+  pickField,
+  detectRegCol,
+  detectPeCol
+} from "@/lib/excelParser";
 
 export default function ExamsPage() {
   const { data, setData, saveData, examMeta, saveExamMeta, yearLabel } = useAdmin();
@@ -33,6 +41,7 @@ export default function ExamsPage() {
   const [formDate, setFormDate] = useState("");
   const [formTime, setFormTime] = useState("1:30 PM – 4:30 PM");
   const [formType, setFormType] = useState<SubjectType>("core");
+  const [formElectiveCategory, setFormElectiveCategory] = useState<string>("");
   const [formSections, setFormSections] = useState<string[]>([]);
   const [formEnrolled, setFormEnrolled] = useState<ElectiveEnrollment[]>([]);
   const [enrollUploadStatus, setEnrollUploadStatus] = useState<string | null>(null);
@@ -68,6 +77,7 @@ export default function ExamsPage() {
       setFormDate(subject.date);
       setFormTime(subject.time);
       setFormType(subject.type || "core");
+      setFormElectiveCategory(subject.electiveCategory || "");
       setFormSections([...subject.sections]);
       setFormEnrolled([...(subject.enrolledStudents || [])]);
     } else {
@@ -77,6 +87,7 @@ export default function ExamsPage() {
       setFormDate("");
       setFormTime("1:30 PM – 4:30 PM");
       setFormType("core");
+      setFormElectiveCategory("");
       setFormSections([...availableSections]); // Auto-select all sections for core
       setFormEnrolled([]);
     }
@@ -102,88 +113,44 @@ export default function ExamsPage() {
         const enrolledMap = new Map<string, string>(); // regNo -> peSection
         let colWarning: string | null = null;
 
-        const REG_ALIASES = [
-          "Registration No", "Reg No", "RegNo", "Registration Number",
-          "Enrollment No", "Enroll No", "EnrollmentNo",
-          "Student Reg No", "StudentRegNo", "StudentRegtNo",
-          "Regd No", "RegdNo", "Roll No", "RollNo",
-          "registration_no", "reg_no", "enrollment_no", "roll_no",
-        ];
-        const PE_ALIASES = [
-          "PE Section", "PE Sec", "PESection", "PESec",
-          "Elective Section", "Elective Sec", "Section", "Sec",
-          "pe_section", "pe_sec", "elective_section", "section",
-          "Core Section", "Core Sec", "Class", "Batch", "Group",
-          "Student Section", "Subject Section",
-        ];
-
-        function looksLikeMujRegNo(val: string): boolean {
-          return /^\d{2}FE\d{2}[A-Z0-9]{2,6}\d{3,6}$/i.test(val.trim());
-        }
-
-        // Typical sections: "A", "B1", "X", usually 1-4 uppercase/numeric chars, never a reg number.
-        function looksLikeSection(val: string): boolean {
-          const s = val.trim();
-          return s.length >= 1 && s.length <= 4 && /^[a-zA-Z0-9]+$/.test(s) && !looksLikeMujRegNo(s);
-        }
-
-        function pickField(row: Record<string, any>, aliases: string[]): string {
-          for (const alias of aliases) {
-            if (alias in row && String(row[alias]).trim()) return String(row[alias]).trim();
-          }
-          const keys = Object.keys(row);
-          for (const alias of aliases) {
-            const match = keys.find((k) => k.trim().toLowerCase() === alias.toLowerCase());
-            if (match && String(row[match]).trim()) return String(row[match]).trim();
-          }
-          return "";
-        }
-
-        function detectRegCol(rows: Record<string, any>[]): string | null {
-          const allKeys = Object.keys(rows[0] || {});
-          const aliasMatch = REG_ALIASES.find((a) =>
-            allKeys.some((k) => k.trim().toLowerCase() === a.toLowerCase())
-          );
-          if (aliasMatch) {
-            return allKeys.find((k) => k.trim().toLowerCase() === aliasMatch.toLowerCase()) || null;
-          }
-          for (const row of rows.slice(0, 10)) {
-            for (const key of Object.keys(row)) {
-              if (looksLikeMujRegNo(String(row[key] ?? "").trim())) return key;
-            }
-          }
-          return null;
-        }
-
-        function detectPeCol(rows: Record<string, any>[], excludeCol: string | null): string | null {
-          const allKeys = Object.keys(rows[0] || {});
-          const aliasMatch = PE_ALIASES.find((a) =>
-            allKeys.some((k) => k.trim().toLowerCase() === a.toLowerCase())
-          );
-          if (aliasMatch) {
-            const actualCol = allKeys.find((k) => k.trim().toLowerCase() === aliasMatch.toLowerCase());
-            if (actualCol && actualCol !== excludeCol) return actualCol;
-          }
-          // Value-based fallback: look for a column where majority of non-empty values look like sections
-          for (const key of allKeys) {
-            if (key === excludeCol) continue;
-            let sectionCount = 0;
-            let total = 0;
-            for (const row of rows.slice(0, 20)) {
-              const val = String(row[key] ?? "").trim();
-              if (val) {
-                total++;
-                if (looksLikeSection(val)) sectionCount++;
-              }
-            }
-            if (total > 0 && sectionCount / total >= 0.5) return key;
-          }
-          return null;
-        }
-
         for (const sheetName of workbook.SheetNames) {
           const sheet = workbook.Sheets[sheetName];
-          const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: "" });
+          const rawRows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: "" });
+          if (rawRows.length === 0) continue;
+
+          // Find the actual header row (some sheets have title rows before headers)
+          let headerRowIdx = -1;
+          for (let i = 0; i < Math.min(rawRows.length, 20); i++) {
+            const row = rawRows[i];
+            if (!Array.isArray(row)) continue;
+            const hasRegAlias = row.some((cell) => {
+              const val = String(cell).trim().toLowerCase();
+              return REG_ALIASES.some((a) => a.toLowerCase() === val);
+            });
+            if (hasRegAlias) {
+              headerRowIdx = i;
+              break;
+            }
+          }
+
+          let rows: Record<string, any>[] = [];
+          if (headerRowIdx !== -1) {
+            const headers = rawRows[headerRowIdx].map((c, idx) => String(c).trim() || `__EMPTY_${idx}`);
+            for (let i = headerRowIdx + 1; i < rawRows.length; i++) {
+              const rowArr = rawRows[i];
+              if (!Array.isArray(rowArr)) continue;
+              const rowObj: Record<string, any> = {};
+              rowArr.forEach((cell, idx) => {
+                if (idx < headers.length) {
+                  rowObj[headers[idx]] = cell;
+                }
+              });
+              rows.push(rowObj);
+            }
+          } else {
+            rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: "" });
+          }
+
           if (rows.length === 0) continue;
 
           const detectedRegCol = detectRegCol(rows);
@@ -249,6 +216,7 @@ export default function ExamsPage() {
       date: formDate,
       time: formTime,
       type: formType,
+      electiveCategory: formType === "elective" ? formElectiveCategory : undefined,
       sections: formType === "core" ? formSections.sort() : [],
       enrolledStudents: formType === "elective" ? formEnrolled : [],
     };
@@ -472,7 +440,7 @@ export default function ExamsPage() {
                         border: `1px solid ${isElective ? "rgba(139,92,246,0.3)" : "rgba(59,130,246,0.3)"}`,
                       }}
                     >
-                      {isElective ? "ELECTIVE" : "CORE"}
+                      {isElective ? (subject.electiveCategory ? subject.electiveCategory.toUpperCase() : "ELECTIVE") : "CORE"}
                     </span>
                   </div>
                   <h3
@@ -820,6 +788,36 @@ export default function ExamsPage() {
                     </button>
                   </div>
                 </div>
+
+                {formType === "elective" && (
+                  <div>
+                    <label
+                      className="block text-[10px] font-bold uppercase tracking-wider mb-2"
+                      style={{ color: "var(--text-3)" }}
+                    >
+                      Elective Category (Optional)
+                    </label>
+                    <select
+                      value={formElectiveCategory}
+                      onChange={(e) => setFormElectiveCategory(e.target.value)}
+                      className="w-full rounded-xl px-4 py-3 text-sm font-bold focus:outline-none appearance-none cursor-pointer border-2"
+                      style={{
+                        borderColor: "var(--card-border)",
+                        background: "var(--input-bg)",
+                        color: "var(--text-1)",
+                      }}
+                    >
+                      <option value="">None / Custom</option>
+                      <option value="Program Elective 1 (PE-1)">Program Elective 1 (PE-1)</option>
+                      <option value="Program Elective 2 (PE-2)">Program Elective 2 (PE-2)</option>
+                      <option value="Program Elective 3 (PE-3)">Program Elective 3 (PE-3)</option>
+                      <option value="Program Elective 4 (PE-4)">Program Elective 4 (PE-4)</option>
+                      <option value="Open Elective 1 (OE-1)">Open Elective 1 (OE-1)</option>
+                      <option value="Open Elective 2 (OE-2)">Open Elective 2 (OE-2)</option>
+                      <option value="Open Elective 3 (OE-3)">Open Elective 3 (OE-3)</option>
+                    </select>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
