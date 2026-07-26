@@ -32,8 +32,29 @@ export async function PUT(request: Request) {
 
   try {
     const body = await request.json();
-    await writeAdminData(body.data);
-    return NextResponse.json({ success: true });
+    const clientData = body.data;
+
+    // Read current data to verify version
+    const currentData = await readAdminData();
+    const currentVersion = currentData.version || 2;
+    const clientVersion = clientData.version || 2;
+
+    if (clientVersion !== currentVersion) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Concurrency Conflict: Data was modified by another admin. Please refresh to avoid overwriting their work.",
+          conflict: true
+        },
+        { status: 409 }
+      );
+    }
+
+    // Increment version
+    clientData.version = currentVersion + 1;
+
+    await writeAdminData(clientData);
+    return NextResponse.json({ success: true, newVersion: clientData.version });
   } catch (err) {
     return NextResponse.json(
       { success: false, error: "Failed to write data" },

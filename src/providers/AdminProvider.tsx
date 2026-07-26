@@ -121,9 +121,19 @@ export function AdminProvider({
           },
           body: JSON.stringify({ data: newFullData }),
         });
+
+        if (res.status === 409) {
+          alert("CRITICAL ERROR: Data has been modified by another admin concurrently.\nThe page will now reload to prevent overwriting their work.");
+          window.location.reload();
+          return;
+        }
+
         const json = await res.json();
         if (json.success) {
           setLastSaved(new Date().toLocaleTimeString());
+          if (json.newVersion) {
+            setFullData((prev) => ({ ...prev, version: json.newVersion }));
+          }
         }
       } catch {
         // Handle error silently
