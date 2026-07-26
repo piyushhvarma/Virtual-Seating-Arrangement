@@ -221,14 +221,12 @@ export default function StudentsPage() {
   const [formReg, setFormReg] = useState("");
   const [formName, setFormName] = useState("");
   const [formSection, setFormSection] = useState("");
-  const [formPeSection, setFormPeSection] = useState("");
 
   const startEdit = (regNo: string) => {
     const st = data.students[regNo];
     setFormReg(regNo);
     setFormName(st.name);
     setFormSection(st.section);
-    setFormPeSection(st.peSection || "");
     setEditingReg(regNo);
     setShowAddForm(true);
   };
@@ -238,12 +236,10 @@ export default function StudentsPage() {
     if (!regNo) return;
 
     const newStudents = { ...data.students };
-    const pe = formPeSection.trim();
     newStudents[regNo] = {
       regNo,
       name: formName.trim() || "Unknown",
       section: formSection.trim(),
-      ...(pe ? { peSection: pe } : {}),
       year: getYearFromRegNo(regNo),
     };
 
@@ -255,7 +251,6 @@ export default function StudentsPage() {
     setFormReg("");
     setFormName("");
     setFormSection("");
-    setFormPeSection("");
   };
 
   const deleteStudent = async (regNo: string) => {
@@ -268,9 +263,9 @@ export default function StudentsPage() {
 
   // ── Download as CSV ──────────────────────────────
   const downloadCSV = () => {
-    const header = "Registration No,Student Name,Section,PE Section,Year\n";
+    const header = "Registration No,Student Name,Section,Year\n";
     const rows = students
-      .map(([reg, st]) => `${reg},${st.name},${st.section},${st.peSection || ""},${st.year}`)
+      .map(([reg, st]) => `${reg},${st.name},${st.section},${st.year}`)
       .join("\n");
     const blob = new Blob([header + rows], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -332,7 +327,6 @@ export default function StudentsPage() {
               setFormReg("");
               setFormName("");
               setFormSection("");
-              setFormPeSection("");
             }}
           >
             <Plus size={14} /> Add Student
@@ -512,34 +506,19 @@ export default function StudentsPage() {
                     color: "var(--text-1)",
                   }}
                 />
-                <div className="flex gap-2">
-                  <input
-                    placeholder="Core Sec (e.g. A)"
-                    value={formSection}
-                    onChange={(e) =>
-                      setFormSection(e.target.value.toUpperCase())
-                    }
-                    className="w-full rounded-xl px-4 py-2.5 text-sm font-semibold focus:outline-none"
-                    style={{
-                      border: "2px solid var(--card-border)",
-                      background: "var(--input-bg)",
-                      color: "var(--text-1)",
-                    }}
-                  />
-                  <input
-                    placeholder="PE Sec (e.g. B)"
-                    value={formPeSection}
-                    onChange={(e) =>
-                      setFormPeSection(e.target.value.toUpperCase())
-                    }
-                    className="w-full rounded-xl px-4 py-2.5 text-sm font-semibold focus:outline-none"
-                    style={{
-                      border: "2px solid var(--card-border)",
-                      background: "var(--input-bg)",
-                      color: "var(--text-1)",
-                    }}
-                  />
-                </div>
+                <input
+                  placeholder="Section (e.g. A)"
+                  value={formSection}
+                  onChange={(e) =>
+                    setFormSection(e.target.value.toUpperCase())
+                  }
+                  className="w-full rounded-xl px-4 py-2.5 text-sm font-semibold focus:outline-none"
+                  style={{
+                    border: "2px solid var(--card-border)",
+                    background: "var(--input-bg)",
+                    color: "var(--text-1)",
+                  }}
+                />
                 <div className="flex gap-2 mt-2">
                   <button
                     onClick={() => setShowAddForm(false)}
@@ -669,13 +648,7 @@ export default function StudentsPage() {
                   className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider"
                   style={{ fontFamily: "var(--font-head, sans-serif)" }}
                 >
-                  Core Sec
-                </th>
-                <th
-                  className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider"
-                  style={{ fontFamily: "var(--font-head, sans-serif)" }}
-                >
-                  PE Sec
+                  Section
                 </th>
                 <th
                   className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider"
@@ -721,22 +694,6 @@ export default function StudentsPage() {
                     <span className="badge-dark text-[10px]">
                       {st.section || "—"}
                     </span>
-                  </td>
-                  <td className="px-4 py-2.5 text-center">
-                    {st.peSection ? (
-                      <span
-                        className="text-[10px] font-bold px-2 py-0.5 rounded-md"
-                        style={{
-                          background: "rgba(139,92,246,0.1)",
-                          color: "#8b5cf6",
-                          border: "1px solid rgba(139,92,246,0.25)",
-                        }}
-                      >
-                        {st.peSection}
-                      </span>
-                    ) : (
-                      <span style={{ color: "var(--text-3)", fontSize: "10px" }}>—</span>
-                    )}
                   </td>
                   <td className="px-4 py-2.5 text-center">
                     <span className="badge-light text-[10px]">
