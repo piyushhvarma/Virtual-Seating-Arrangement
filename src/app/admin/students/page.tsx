@@ -221,6 +221,10 @@ export default function StudentsPage() {
   const [formReg, setFormReg] = useState("");
   const [formName, setFormName] = useState("");
   const [formSection, setFormSection] = useState("");
+  // PE enrollments: which elective subjects this student is in (edit modal only)
+  const [formPeEnrollments, setFormPeEnrollments] = useState<
+    { subjectId: string; subjectCode: string; subjectName: string; peSection: string }[]
+  >([]);
 
   const startEdit = (regNo: string) => {
     const st = data.students[regNo];
@@ -228,6 +232,18 @@ export default function StudentsPage() {
     setFormName(st.name);
     setFormSection(st.section);
     setEditingReg(regNo);
+
+    // Find all elective subjects this student is enrolled in
+    const enrollments = data.subjects
+      .filter((s) => s.type === "elective")
+      .flatMap((s) => {
+        const entry = s.enrolledStudents.find((e) => e.regNo === regNo);
+        return entry
+          ? [{ subjectId: s.id, subjectCode: s.code, subjectName: s.name, peSection: entry.peSection }]
+          : [];
+      });
+    setFormPeEnrollments(enrollments);
+
     setShowAddForm(true);
   };
 
@@ -235,6 +251,7 @@ export default function StudentsPage() {
     const regNo = formReg.trim().toUpperCase();
     if (!regNo) return;
 
+    // Update master student record
     const newStudents = { ...data.students };
     newStudents[regNo] = {
       regNo,
@@ -243,7 +260,22 @@ export default function StudentsPage() {
       year: getYearFromRegNo(regNo),
     };
 
-    const newData = { ...data, students: newStudents };
+    // If editing, also patch PE section changes across subject enrollments
+    let newSubjects = data.subjects;
+    if (editingReg && formPeEnrollments.length > 0) {
+      newSubjects = data.subjects.map((subject) => {
+        const change = formPeEnrollments.find((e) => e.subjectId === subject.id);
+        if (!change) return subject;
+        return {
+          ...subject,
+          enrolledStudents: subject.enrolledStudents.map((e) =>
+            e.regNo === regNo ? { ...e, peSection: change.peSection.trim().toUpperCase() } : e
+          ),
+        };
+      });
+    }
+
+    const newData = { ...data, students: newStudents, subjects: newSubjects };
     setData(newData);
     await saveData(newData);
     setShowAddForm(false);
@@ -251,6 +283,7 @@ export default function StudentsPage() {
     setFormReg("");
     setFormName("");
     setFormSection("");
+    setFormPeEnrollments([]);
   };
 
   const deleteStudent = async (regNo: string) => {
@@ -464,7 +497,7 @@ export default function StudentsPage() {
             onClick={() => setShowAddForm(false)}
           >
             <motion.div
-              className="card p-6 w-full max-w-sm"
+              className="card p-6 w-full max-w-sm max-h-[85vh] overflow-y-auto"
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
@@ -519,6 +552,63 @@ export default function StudentsPage() {
                     color: "var(--text-1)",
                   }}
                 />
+                {/* PE Enrollments — shown when editing */}
+                {editingReg && (
+                  <div
+                    className="rounded-xl p-3 space-y-2"
+                    style={{
+                      background: "var(--input-bg)",
+                      border: "1.5px solid var(--border)",
+                    }}
+                  >
+                    <p
+                      className="text-[10px] font-bold uppercase tracking-wider"
+                      style={{ color: "var(--text-3)" }}
+                    >
+                      Program Elective Enrollments
+                    </p>
+                    {formPeEnrollments.length === 0 ? (
+                      <p className="text-[11px]" style={{ color: "var(--text-3)" }}>
+                        Not enrolled in any elective subject.
+                      </p>
+                    ) : (
+                      formPeEnrollments.map((enrollment, idx) => (
+                        <div key={enrollment.subjectId} className="flex items-center gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p
+                              className="text-[10px] font-bold truncate"
+                              style={{ color: "var(--text-1)" }}
+                            >
+                              {enrollment.subjectCode}
+                            </p>
+                            <p
+                              className="text-[9px] truncate"
+                              style={{ color: "var(--text-3)" }}
+                            >
+                              {enrollment.subjectName}
+                            </p>
+                          </div>
+                          <input
+                            value={enrollment.peSection}
+                            onChange={(e) => {
+                              const updated = [...formPeEnrollments];
+                              updated[idx] = { ...updated[idx], peSection: e.target.value.toUpperCase() };
+                              setFormPeEnrollments(updated);
+                            }}
+                            placeholder="PE Sec"
+                            className="w-16 rounded-lg px-2 py-1.5 text-xs font-bold text-center focus:outline-none"
+                            style={{
+                              border: "2px solid rgba(139,92,246,0.4)",
+                              background: "rgba(139,92,246,0.08)",
+                              color: "#8b5cf6",
+                              fontFamily: "var(--font-mono)",
+                            }}
+                          />
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
                 <div className="flex gap-2 mt-2">
                   <button
                     onClick={() => setShowAddForm(false)}
