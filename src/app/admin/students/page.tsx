@@ -72,56 +72,129 @@ export default function StudentsPage() {
         };
         let addedCount = 0;
 
+        // Known registration number column aliases (case-insensitive lookup done below)
+        const REG_ALIASES = [
+          "Registration No",
+          "Reg No",
+          "RegNo",
+          "Registration Number",
+          "Enrollment No",
+          "Enroll No",
+          "EnrollmentNo",
+          "Student Reg No",
+          "StudentRegNo",
+          "StudentRegtNo",
+          "Regd No",
+          "RegdNo",
+          "Roll No",
+          "RollNo",
+          "registration_no",
+          "reg_no",
+          "enrollment_no",
+          "roll_no",
+        ];
+
+        const NAME_ALIASES = [
+          "Student Name",
+          "Name",
+          "Full Name",
+          "FullName",
+          "StudentName",
+          "student_name",
+          "name",
+          "full_name",
+        ];
+
+        const SECTION_ALIASES = [
+          "Core Section",
+          "Section",
+          "Sec",
+          "core_section",
+          "section",
+          "sec",
+        ];
+
+        // Helper: find a value in a row by trying a list of aliases
+        function pickField(row: Record<string, any>, aliases: string[]): string {
+          // 1. Exact match
+          for (const alias of aliases) {
+            if (alias in row) return String(row[alias] ?? "");
+          }
+          // 2. Case-insensitive match
+          const keys = Object.keys(row);
+          for (const alias of aliases) {
+            const match = keys.find(
+              (k) => k.trim().toLowerCase() === alias.toLowerCase()
+            );
+            if (match) return String(row[match] ?? "");
+          }
+          return "";
+        }
+
+        // Helper: detect if a string looks like a MUJ reg number
+        // Flexible: starts with 2 digits + FE, followed by any alphanumerics
+        function looksLikeMujRegNo(val: string): boolean {
+          return /^\d{2}FE\d{2}[A-Z0-9]{2,6}\d{3,6}$/i.test(val.trim());
+        }
+
+        // Helper: auto-detect which column holds reg numbers by scanning first rows
+        function detectRegNoColumn(
+          rows: Record<string, any>[]
+        ): string | null {
+          const sample = rows.slice(0, 10);
+          for (const row of sample) {
+            for (const key of Object.keys(row)) {
+              const val = String(row[key] ?? "").trim();
+              if (looksLikeMujRegNo(val)) return key;
+            }
+          }
+          return null;
+        }
+
         for (const sheetName of workbook.SheetNames) {
           const sheet = workbook.Sheets[sheetName];
-          const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet);
+          const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, {
+            defval: "",
+          });
+
+          if (rows.length === 0) continue;
+
+          // Detect column names — prefer alias match, fall back to auto-detect
+          const allKeys = Object.keys(rows[0]);
+          const detectedRegCol =
+            REG_ALIASES.find((a) =>
+              allKeys.some((k) => k.trim().toLowerCase() === a.toLowerCase())
+            ) || detectRegNoColumn(rows);
+
+          if (!detectedRegCol) {
+            setUploadStatus(
+              `⚠️ Sheet "${sheetName}": Couldn't find a reg-no column. Columns found: ${allKeys.join(", ")}`
+            );
+            continue;
+          }
 
           for (const row of rows) {
-            // Try to find registration number column
-            const regNo =
-              String(
-                row["Registration No"] ||
-                  row["Reg No"] ||
-                  row["RegNo"] ||
-                  row["Registration Number"] ||
-                  row["registration_no"] ||
-                  row["reg_no"] ||
-                  ""
-              )
-                .trim()
-                .toUpperCase();
+            const regNoRaw = pickField(row, [detectedRegCol, ...REG_ALIASES])
+              .trim()
+              .toUpperCase();
 
-            if (!regNo || !regNo.match(/^\d{2}FE\d{2}[A-Z]{3}\d{5}$/i))
-              continue;
+            if (!regNoRaw || !looksLikeMujRegNo(regNoRaw)) continue;
+            const regNo = regNoRaw;
 
-            const name = String(
-              row["Student Name"] ||
-                row["Name"] ||
-                row["student_name"] ||
-                row["name"] ||
-                "Unknown"
-            ).trim();
+            const nameFull = pickField(row, NAME_ALIASES).trim();
+            const name =
+              !nameFull || nameFull === "nan" || nameFull === "NaN"
+                ? "Unknown"
+                : nameFull.toUpperCase();
 
-            const section = String(
-              row["Core Section"] ||
-                row["Section"] ||
-                row["core_section"] ||
-                row["section"] ||
-                ""
-            ).trim();
+            const sectionFull = pickField(row, SECTION_ALIASES).trim();
+            const section =
+              sectionFull === "nan" || sectionFull === "NaN" ? "" : sectionFull;
 
             const year = getYearFromRegNo(regNo);
 
-            if (!newStudents[regNo]) {
-              addedCount++;
-            }
-
-            newStudents[regNo] = {
-              regNo,
-              name: name === "nan" || name === "NaN" ? "Unknown" : name,
-              section: section === "nan" || section === "NaN" ? "" : section,
-              year,
-            };
+            if (!newStudents[regNo]) addedCount++;
+            newStudents[regNo] = { regNo, name, section, year };
           }
         }
 
@@ -148,12 +221,14 @@ export default function StudentsPage() {
   const [formReg, setFormReg] = useState("");
   const [formName, setFormName] = useState("");
   const [formSection, setFormSection] = useState("");
+  const [formPeSection, setFormPeSection] = useState("");
 
   const startEdit = (regNo: string) => {
     const st = data.students[regNo];
     setFormReg(regNo);
     setFormName(st.name);
     setFormSection(st.section);
+    setFormPeSection(st.peSection || "");
     setEditingReg(regNo);
     setShowAddForm(true);
   };
@@ -163,10 +238,12 @@ export default function StudentsPage() {
     if (!regNo) return;
 
     const newStudents = { ...data.students };
+    const pe = formPeSection.trim();
     newStudents[regNo] = {
       regNo,
       name: formName.trim() || "Unknown",
       section: formSection.trim(),
+      ...(pe ? { peSection: pe } : {}),
       year: getYearFromRegNo(regNo),
     };
 
@@ -178,6 +255,7 @@ export default function StudentsPage() {
     setFormReg("");
     setFormName("");
     setFormSection("");
+    setFormPeSection("");
   };
 
   const deleteStudent = async (regNo: string) => {
@@ -190,9 +268,9 @@ export default function StudentsPage() {
 
   // ── Download as CSV ──────────────────────────────
   const downloadCSV = () => {
-    const header = "Registration No,Student Name,Section,Year\n";
+    const header = "Registration No,Student Name,Section,PE Section,Year\n";
     const rows = students
-      .map(([reg, st]) => `${reg},${st.name},${st.section},${st.year}`)
+      .map(([reg, st]) => `${reg},${st.name},${st.section},${st.peSection || ""},${st.year}`)
       .join("\n");
     const blob = new Blob([header + rows], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -254,6 +332,7 @@ export default function StudentsPage() {
               setFormReg("");
               setFormName("");
               setFormSection("");
+              setFormPeSection("");
             }}
           >
             <Plus size={14} /> Add Student
@@ -433,19 +512,34 @@ export default function StudentsPage() {
                     color: "var(--text-1)",
                   }}
                 />
-                <input
-                  placeholder="Section (e.g. A)"
-                  value={formSection}
-                  onChange={(e) =>
-                    setFormSection(e.target.value.toUpperCase())
-                  }
-                  className="w-full rounded-xl px-4 py-2.5 text-sm font-semibold focus:outline-none"
-                  style={{
-                    border: "2px solid var(--card-border)",
-                    background: "var(--input-bg)",
-                    color: "var(--text-1)",
-                  }}
-                />
+                <div className="flex gap-2">
+                  <input
+                    placeholder="Core Sec (e.g. A)"
+                    value={formSection}
+                    onChange={(e) =>
+                      setFormSection(e.target.value.toUpperCase())
+                    }
+                    className="w-full rounded-xl px-4 py-2.5 text-sm font-semibold focus:outline-none"
+                    style={{
+                      border: "2px solid var(--card-border)",
+                      background: "var(--input-bg)",
+                      color: "var(--text-1)",
+                    }}
+                  />
+                  <input
+                    placeholder="PE Sec (e.g. B)"
+                    value={formPeSection}
+                    onChange={(e) =>
+                      setFormPeSection(e.target.value.toUpperCase())
+                    }
+                    className="w-full rounded-xl px-4 py-2.5 text-sm font-semibold focus:outline-none"
+                    style={{
+                      border: "2px solid var(--card-border)",
+                      background: "var(--input-bg)",
+                      color: "var(--text-1)",
+                    }}
+                  />
+                </div>
                 <div className="flex gap-2 mt-2">
                   <button
                     onClick={() => setShowAddForm(false)}
@@ -575,7 +669,13 @@ export default function StudentsPage() {
                   className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider"
                   style={{ fontFamily: "var(--font-head, sans-serif)" }}
                 >
-                  Section
+                  Core Sec
+                </th>
+                <th
+                  className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider"
+                  style={{ fontFamily: "var(--font-head, sans-serif)" }}
+                >
+                  PE Sec
                 </th>
                 <th
                   className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider"
@@ -621,6 +721,22 @@ export default function StudentsPage() {
                     <span className="badge-dark text-[10px]">
                       {st.section || "—"}
                     </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-center">
+                    {st.peSection ? (
+                      <span
+                        className="text-[10px] font-bold px-2 py-0.5 rounded-md"
+                        style={{
+                          background: "rgba(139,92,246,0.1)",
+                          color: "#8b5cf6",
+                          border: "1px solid rgba(139,92,246,0.25)",
+                        }}
+                      >
+                        {st.peSection}
+                      </span>
+                    ) : (
+                      <span style={{ color: "var(--text-3)", fontSize: "10px" }}>—</span>
+                    )}
                   </td>
                   <td className="px-4 py-2.5 text-center">
                     <span className="badge-light text-[10px]">
