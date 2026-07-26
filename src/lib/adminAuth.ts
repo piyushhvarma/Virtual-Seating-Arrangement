@@ -51,6 +51,13 @@ export function extractToken(request: Request): string | null {
  * Validate admin password against env var.
  */
 export function checkPassword(password: string): boolean {
-  const expected = process.env.ADMIN_PASSWORD || "mujadmin";
+  const expected = process.env.ADMIN_PASSWORD;
+
+  // FAIL-SAFE: If the env var is completely missing, absolutely NO ONE can log in.
+  if (!expected) {
+    console.error("CRITICAL SECURITY ALERT: ADMIN_PASSWORD environment variable is not set in production!");
+    return false;
+  }
+
   return password === expected;
 }
