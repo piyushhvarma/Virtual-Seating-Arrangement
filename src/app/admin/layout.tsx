@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { AdminProvider, useAdmin } from "@/providers/AdminProvider";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { AdminCopilot } from "@/components/AdminCopilot";
 import { AnimatedThemeToggler } from "@/components/AnimatedThemeToggler";
 import { AVAILABLE_YEARS } from "@/lib/adminTypes";
 import { Loader2, CheckCircle2, Clock } from "lucide-react";
@@ -152,6 +153,7 @@ export default function AdminLayout({
   return (
     <AdminProvider token={token}>
       <AdminContent>{children}</AdminContent>
+      <AdminCopilot />
     </AdminProvider>
   );
 }
