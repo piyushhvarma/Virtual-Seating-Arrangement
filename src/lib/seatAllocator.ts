@@ -22,26 +22,29 @@ export function autoAssignSeats(
   regNumbers: string[],
   rows: number,
   cols: number,
-  startIndex: number = 0
+  occupiedIndices: Set<number> = new Set()
 ): { assigned: AllocationResult[]; overflow: string[] } {
   const capacity = rows * cols;
-  const availableSlots = capacity - startIndex;
-
   const assigned: AllocationResult[] = [];
   const overflow: string[] = [];
 
-  regNumbers.forEach((regNo, i) => {
-    const seatIndex = startIndex + i;
-    if (seatIndex < capacity) {
-      assigned.push({
-        regNo,
-        seatIndex,
-        seatLabel: getSeatCoordinates(seatIndex, rows),
-      });
-    } else {
-      overflow.push(regNo);
-    }
-  });
+  let currentRegIdx = 0;
+  for (let seatIndex = 0; seatIndex < capacity; seatIndex++) {
+    if (currentRegIdx >= regNumbers.length) break;
+    if (occupiedIndices.has(seatIndex)) continue; // skip taken
+
+    assigned.push({
+      regNo: regNumbers[currentRegIdx],
+      seatIndex,
+      seatLabel: getSeatCoordinates(seatIndex, rows),
+    });
+    currentRegIdx++;
+  }
+
+  // Any left over
+  for (let i = currentRegIdx; i < regNumbers.length; i++) {
+    overflow.push(regNumbers[i]);
+  }
 
   return { assigned, overflow };
 }

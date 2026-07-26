@@ -20,6 +20,27 @@ import { generateId } from "@/lib/adminTypes";
 import { getSeatCoordinates } from "@/lib/getSeatCoordinates";
 import type { RoomAssignment } from "@/lib/adminTypes";
 
+function parseTime(t: string): number {
+  const match = t.trim().match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (!match) return 0;
+  let h = parseInt(match[1]);
+  const m = parseInt(match[2]);
+  const isPM = match[3].toUpperCase() === "PM";
+  if (h === 12 && !isPM) h = 0;
+  if (h !== 12 && isPM) h += 12;
+  return h + m / 60;
+}
+
+function doTimesOverlap(time1: string, time2: string): boolean {
+  if (time1 === time2) return true;
+  const parts1 = time1.split(/-|–|to/i).map(parseTime);
+  const parts2 = time2.split(/-|–|to/i).map(parseTime);
+  if (parts1.length < 2 || parts2.length < 2) return time1 === time2;
+  const s1 = parts1[0], e1 = parts1[1];
+  const s2 = parts2[0], e2 = parts2[1];
+  return s1 < e2 && s2 < e1;
+}
+
 export default function AssignPage() {
   const { data, setData, saveData, yearLabel } = useAdmin();
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
@@ -41,7 +62,7 @@ export default function AssignPage() {
     if (subject.type === "elective" && subject.enrolledStudents?.length > 0) {
       // Elective: only enrolled students
       return subject.enrolledStudents
-        .map((regNo) => data.students[regNo])
+        .map((e) => data.students[e.regNo])
         .filter(Boolean)
         .sort((a, b) => a.regNo.localeCompare(b.regNo));
     }
@@ -82,23 +103,78 @@ export default function AssignPage() {
     [data.roomAssignments, subject]
   );
 
+  // ── Concurrent Room Sharing State ──────────────────
+  const concurrentOccupiedSeats = useMemo(() => {
+    const occupied = new Set<number>();
+    if (!subject || !subject.date || !subject.time) return occupied;
+
+    const trimmedRoom = roomName.trim().toUpperCase();
+    if (!trimmedRoom) return occupied;
+
+    const concurrentSubjectIds = new Set(
+      data.subjects
+        .filter((s) => s.date === subject.date && doTimesOverlap(s.time, subject.time))
+        .map((s) => s.id)
+    );
+
+    data.roomAssignments.forEach((r) => {
+      if (
+        r.room.toUpperCase() === trimmedRoom &&
+        concurrentSubjectIds.has(r.subjectId)
+      ) {
+        r.assignments.forEach((a) => occupied.add(a.seatIndex));
+      }
+    });
+
+    return occupied;
+  }, [roomName, subject, data.subjects, data.roomAssignments]);
+
+  const existingRoomConfig = useMemo(() => {
+    if (!subject || !subject.date || !subject.time) return null;
+    const trimmedRoom = roomName.trim().toUpperCase();
+    if (!trimmedRoom) return null;
+
+    const concurrentSubjectIds = new Set(
+      data.subjects
+        .filter((s) => s.date === subject.date && doTimesOverlap(s.time, subject.time))
+        .map((s) => s.id)
+    );
+
+    return data.roomAssignments.find(
+      (r) =>
+        r.room.toUpperCase() === trimmedRoom &&
+        concurrentSubjectIds.has(r.subjectId)
+    );
+  }, [roomName, subject, data.subjects, data.roomAssignments]);
+
   // ── Auto Assign ──────────────────────────────────
   const handleAutoAssign = useCallback(async () => {
     if (!subject || !roomName.trim()) return;
 
+    // Fast-fail if trying to assign to a full shared room
+    const rowsToUse = existingRoomConfig ? existingRoomConfig.rows : roomRows;
+    const colsToUse = existingRoomConfig ? existingRoomConfig.cols : roomCols;
+    const capacity = rowsToUse * colsToUse;
+
+    if (concurrentOccupiedSeats.size >= capacity) {
+      alert("This room is already fully booked by concurrent exams!");
+      return;
+    }
+
     const studentsToAssign = unassigned.map((s) => s.regNo);
-    const { assigned, overflow } = autoAssignSeats(
+    const { assigned } = autoAssignSeats(
       studentsToAssign,
-      roomRows,
-      roomCols
+      rowsToUse,
+      colsToUse,
+      concurrentOccupiedSeats
     );
 
     const newRoom: RoomAssignment = {
       id: generateId(),
       subjectId: subject.id,
       room: roomName.trim(),
-      rows: roomRows,
-      cols: roomCols,
+      rows: rowsToUse,
+      cols: colsToUse,
       assignments: assigned.map((a) => ({
         regNo: a.regNo,
         seatIndex: a.seatIndex,
@@ -219,7 +295,7 @@ export default function AssignPage() {
                   className="text-xs font-bold"
                   style={{ color: "#8b5cf6" }}
                 >
-                  Elective — {subject.enrolledStudents?.length || 0} students
+                  {subject.electiveCategory ? subject.electiveCategory.toUpperCase() : "ELECTIVE"} — {subject.enrolledStudents?.length || 0} students
                   enrolled via Excel
                 </span>
               </div>
@@ -251,11 +327,10 @@ export default function AssignPage() {
                           color: selectedSections.includes(sec)
                             ? "var(--pill-text)"
                             : "var(--text-2)",
-                          border: `2px solid ${
-                            selectedSections.includes(sec)
-                              ? "var(--card-border)"
-                              : "var(--border)"
-                          }`,
+                          border: `2px solid ${selectedSections.includes(sec)
+                            ? "var(--card-border)"
+                            : "var(--border)"
+                            }`,
                         }}
                       >
                         Sec {sec} ({count})
@@ -342,9 +417,10 @@ export default function AssignPage() {
                 type="number"
                 min={1}
                 max={30}
-                value={roomRows}
+                value={existingRoomConfig ? existingRoomConfig.rows : roomRows}
+                disabled={!!existingRoomConfig}
                 onChange={(e) => setRoomRows(Number(e.target.value))}
-                className="w-full rounded-xl px-3 py-2.5 text-sm font-bold focus:outline-none"
+                className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold focus:outline-none ${existingRoomConfig ? "opacity-50 cursor-not-allowed" : ""}`}
                 style={{
                   border: "2px solid var(--card-border)",
                   background: "var(--input-bg)",
@@ -363,9 +439,10 @@ export default function AssignPage() {
                 type="number"
                 min={1}
                 max={20}
-                value={roomCols}
+                value={existingRoomConfig ? existingRoomConfig.cols : roomCols}
+                disabled={!!existingRoomConfig}
                 onChange={(e) => setRoomCols(Number(e.target.value))}
-                className="w-full rounded-xl px-3 py-2.5 text-sm font-bold focus:outline-none"
+                className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold focus:outline-none ${existingRoomConfig ? "opacity-50 cursor-not-allowed" : ""}`}
                 style={{
                   border: "2px solid var(--card-border)",
                   background: "var(--input-bg)",
@@ -375,40 +452,55 @@ export default function AssignPage() {
             </div>
           </div>
 
-          <div
-            className="flex items-center justify-between p-3 rounded-xl"
-            style={{
-              background: "var(--input-bg)",
-              border: "1.5px solid var(--border)",
-            }}
-          >
-            <span className="text-xs font-semibold" style={{ color: "var(--text-2)" }}>
-              Capacity: {roomRows * roomCols} seats · Will assign{" "}
-              {Math.min(unassigned.length, roomRows * roomCols)} of{" "}
-              {unassigned.length} pending students
-            </span>
-            {unassigned.length > roomRows * roomCols && (
-              <span
-                className="text-[10px] font-bold"
-                style={{ color: "#f59e0b" }}
-              >
-                {unassigned.length - roomRows * roomCols} will overflow
-              </span>
-            )}
-          </div>
+          {(() => {
+            const currentRows = existingRoomConfig ? existingRoomConfig.rows : roomRows;
+            const currentCols = existingRoomConfig ? existingRoomConfig.cols : roomCols;
+            const totalCapacity = currentRows * currentCols;
+            const availableSeats = Math.max(0, totalCapacity - concurrentOccupiedSeats.size);
+            const toAssign = Math.min(unassigned.length, availableSeats);
 
-          <motion.button
-            className="pill-btn text-sm w-full py-3"
-            style={{ background: "#10b981", color: "#fff" }}
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handleAutoAssign}
-            disabled={!roomName.trim()}
-          >
-            <Zap size={16} /> Auto-Assign{" "}
-            {Math.min(unassigned.length, roomRows * roomCols)} Students to{" "}
-            {roomName || "Room"}
-          </motion.button>
+            return (
+              <>
+                <div
+                  className="flex items-center justify-between p-3 rounded-xl"
+                  style={{
+                    background: "var(--input-bg)",
+                    border: "1.5px solid var(--border)",
+                  }}
+                >
+                  <span className="text-xs font-semibold" style={{ color: "var(--text-2)" }}>
+                    Capacity: {availableSeats}/{totalCapacity} free · Will assign {toAssign} of {unassigned.length} pending
+                  </span>
+                  {unassigned.length > availableSeats && (
+                    <span
+                      className="text-[10px] font-bold"
+                      style={{ color: "#f59e0b" }}
+                    >
+                      {unassigned.length - availableSeats} will overflow
+                    </span>
+                  )}
+                </div>
+
+                {existingRoomConfig && (
+                  <div className="text-[11px] font-bold flex items-center gap-1.5 mt-2" style={{ color: "#3b82f6" }}>
+                    <AlertTriangle size={12} />
+                    Room is shared with concurrent exams. Dimensions locked.
+                  </div>
+                )}
+
+                <motion.button
+                  className="pill-btn text-sm w-full py-3 mt-4"
+                  style={{ background: availableSeats === 0 ? "var(--border)" : "#10b981", color: availableSeats === 0 ? "var(--text-3)" : "#fff" }}
+                  whileHover={availableSeats > 0 ? { scale: 1.01 } : {}}
+                  whileTap={availableSeats > 0 ? { scale: 0.98 } : {}}
+                  onClick={handleAutoAssign}
+                  disabled={!roomName.trim() || availableSeats === 0}
+                >
+                  <Zap size={16} /> {availableSeats === 0 ? "Room Full" : `Auto-Assign ${toAssign} Students to ${roomName || "Room"}`}
+                </motion.button>
+              </>
+            );
+          })()}
         </motion.div>
       )}
 
@@ -518,11 +610,10 @@ export default function AssignPage() {
                             background: student
                               ? "rgba(16,185,129,0.08)"
                               : "var(--input-bg)",
-                            border: `1.5px solid ${
-                              student
-                                ? "rgba(16,185,129,0.3)"
-                                : "var(--border)"
-                            }`,
+                            border: `1.5px solid ${student
+                              ? "rgba(16,185,129,0.3)"
+                              : "var(--border)"
+                              }`,
                             minHeight: "40px",
                           }}
                           title={

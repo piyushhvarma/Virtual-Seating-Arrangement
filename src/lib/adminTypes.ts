@@ -38,6 +38,7 @@ export interface Subject {
   date: string;          // e.g. "21-04-2027"
   time: string;          // e.g. "1:30 PM – 4:30 PM"
   type: SubjectType;     // "core" = section-based, "elective" = student-list-based
+  electiveCategory?: string; // e.g. "Program Elective 1", "Open Elective 1"
   sections: string[];    // used when type = "core" (e.g. ["A", "B", "C"])
   enrolledStudents: ElectiveEnrollment[]; // used when type = "elective" (each entry has regNo + peSection)
 }
