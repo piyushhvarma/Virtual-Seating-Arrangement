@@ -43,3 +43,9 @@ next-env.d.ts
 # data files (PDFs, Excel — too large for git)
 /data/pdfs/
 /data/master-lists/
+
+# local database
+/src/data/admin-data.json
+
+# agent context
+/.agent/
