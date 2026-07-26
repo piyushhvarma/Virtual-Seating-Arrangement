@@ -1,4 +1,5 @@
 import type { AdminData } from "./adminTypes";
+import { getPeSectionForStudent } from "./adminTypes";
 import { getSeatCoordinates } from "./getSeatCoordinates";
 
 /**
@@ -52,7 +53,7 @@ export function compileStudentData(
     ? { [yearKey]: adminData.years[yearKey] }
     : adminData.years;
 
-  for (const [yKey, yearData] of Object.entries(yearsToCompile)) {
+  for (const [, yearData] of Object.entries(yearsToCompile)) {
     // If compiling all, only include published years
     if (!yearKey && !yearData.published) continue;
 
@@ -86,9 +87,16 @@ export function compileStudentData(
           };
         }
 
+        // For elective subjects, use the student's PE section for this subject.
+        // For core subjects, use the student's core section.
+        const sectionForExam =
+          subject.type === "elective"
+            ? getPeSectionForStudent(subject, assignment.regNo) || student.section
+            : student.section;
+
         compiled.students[assignment.regNo].exams.push({
           name: student.name,
-          section: student.section,
+          section: sectionForExam,
           subjectCode: subject.code,
           subject: subject.name,
           room: room.room,

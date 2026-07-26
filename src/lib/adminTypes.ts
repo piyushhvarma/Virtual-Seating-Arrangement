@@ -15,9 +15,16 @@
 export interface MasterStudent {
   regNo: string;
   name: string;
-  section: string;       // Core section (e.g. "A")
-  peSection?: string;    // Program Elective section (e.g. "B") — optional
+  section: string; // Core section (e.g. "A")
   year: number;
+}
+
+// ── Elective Enrollment ────────────────────────────
+// Ties a student to a specific PE section for ONE particular elective subject.
+// A student can appear in PE-A for subject X and PE-B for subject Y.
+export interface ElectiveEnrollment {
+  regNo: string;
+  peSection: string; // e.g. "A", "B1", "PE-A" — section for THIS subject only
 }
 
 
@@ -32,7 +39,7 @@ export interface Subject {
   time: string;          // e.g. "1:30 PM – 4:30 PM"
   type: SubjectType;     // "core" = section-based, "elective" = student-list-based
   sections: string[];    // used when type = "core" (e.g. ["A", "B", "C"])
-  enrolledStudents: string[]; // used when type = "elective" (list of regNos)
+  enrolledStudents: ElectiveEnrollment[]; // used when type = "elective" (each entry has regNo + peSection)
 }
 
 // ── Room Assignment ────────────────────────────────
@@ -177,13 +184,25 @@ export function getStudentsForSubject(
   if (subject.type === "elective" && subject.enrolledStudents.length > 0) {
     // Elective: only students in the enrollment list
     return subject.enrolledStudents
-      .map((regNo) => students[regNo])
+      .map((e) => students[e.regNo])
       .filter(Boolean);
   }
   // Core: all students in the selected sections
   return Object.values(students).filter((s) =>
     subject.sections.includes(s.section)
   );
+}
+
+/**
+ * Get PE section for a specific student in an elective subject.
+ * Returns empty string if not found.
+ */
+export function getPeSectionForStudent(
+  subject: Subject,
+  regNo: string
+): string {
+  if (subject.type !== "elective") return "";
+  return subject.enrolledStudents.find((e) => e.regNo === regNo)?.peSection ?? "";
 }
 
 export function getStudentsForSection(
