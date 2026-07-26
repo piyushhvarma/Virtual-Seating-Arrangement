@@ -8,13 +8,14 @@ const STUDENTS_BLOB_KEY = "students-data.json";
 const LOCAL_ADMIN_PATH = path.join(process.cwd(), "src", "data", "admin-data.json");
 const LOCAL_STUDENTS_PATH = path.join(process.cwd(), "src", "data", "students.json");
 
-const isProduction = process.env.NODE_ENV === "production";
+// Use Blob whenever the token is present (works both locally and on Vercel)
+const useBlobStorage = !!process.env.BLOB_READ_WRITE_TOKEN;
 
 // ── Read Admin Data ────────────────────────────────
 
 export async function readAdminData(): Promise<AdminData> {
   let raw: AdminData;
-  if (isProduction) {
+  if (useBlobStorage) {
     raw = await readAdminDataFromBlob();
   } else {
     raw = await readAdminDataFromFile();
@@ -39,12 +40,11 @@ async function readAdminDataFromFile(): Promise<AdminData> {
 
 async function readAdminDataFromBlob(): Promise<AdminData> {
   try {
-    const { list } = await import("@vercel/blob");
-    const blobs = await list({ prefix: ADMIN_BLOB_KEY });
-    if (blobs.blobs.length === 0) {
-      return createEmptyAdminData();
-    }
-    const res = await fetch(blobs.blobs[0].url);
+    const { head } = await import("@vercel/blob");
+    const result = await head(ADMIN_BLOB_KEY).catch(() => null);
+    if (!result) return createEmptyAdminData();
+    const res = await fetch(result.url, { cache: "no-store" });
+    if (!res.ok) return createEmptyAdminData();
     return (await res.json()) as AdminData;
   } catch {
     return createEmptyAdminData();
@@ -56,7 +56,7 @@ async function readAdminDataFromBlob(): Promise<AdminData> {
 export async function writeAdminData(data: AdminData): Promise<void> {
   data.lastModified = new Date().toISOString();
 
-  if (isProduction) {
+  if (useBlobStorage) {
     await writeAdminDataToBlob(data);
   } else {
     await writeAdminDataToFile(data);
@@ -68,28 +68,23 @@ async function writeAdminDataToFile(data: AdminData): Promise<void> {
 }
 
 async function writeAdminDataToBlob(data: AdminData): Promise<void> {
-  const { put, del, list } = await import("@vercel/blob");
-
-  const blobs = await list({ prefix: ADMIN_BLOB_KEY });
-  for (const blob of blobs.blobs) {
-    await del(blob.url);
-  }
-
+  const { put } = await import("@vercel/blob");
+  // Using allowOverwrite to replace the existing blob in-place (no delete needed)
   await put(ADMIN_BLOB_KEY, JSON.stringify(data), {
     contentType: "application/json",
     access: "public",
+    addRandomSuffix: false,
   });
 }
 
 // ── Publish ────────────────────────────────────────
-// Compiles all published years and writes to students.json.
+// Compiles all published years and writes to students.json (the public-facing data).
 // Called when faculty publishes any year — merges all live years together.
 
 export async function publishStudentData(adminData: AdminData): Promise<CompiledStudentData> {
-  // Compile all published years into one dataset
   const compiled = compileStudentData(adminData);
 
-  if (isProduction) {
+  if (useBlobStorage) {
     await publishToBlobStore(compiled);
   } else {
     await fs.writeFile(
@@ -103,15 +98,10 @@ export async function publishStudentData(adminData: AdminData): Promise<Compiled
 }
 
 async function publishToBlobStore(data: CompiledStudentData): Promise<void> {
-  const { put, del, list } = await import("@vercel/blob");
-
-  const blobs = await list({ prefix: STUDENTS_BLOB_KEY });
-  for (const blob of blobs.blobs) {
-    await del(blob.url);
-  }
-
+  const { put } = await import("@vercel/blob");
   await put(STUDENTS_BLOB_KEY, JSON.stringify(data), {
     contentType: "application/json",
     access: "public",
+    addRandomSuffix: false,
   });
 }
