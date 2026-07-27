@@ -46,7 +46,7 @@ Be concise. Keep answers brief unless explicitly asked for detail. Format all re
             messages,
         });
 
-        return result.toTextStreamResponse();
+        return result.toUIMessageStreamResponse();
     } catch (error) {
         console.error("Copilot Error:", error);
         return NextResponse.json(

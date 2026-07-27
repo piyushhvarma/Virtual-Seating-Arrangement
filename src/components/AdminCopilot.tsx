@@ -10,12 +10,30 @@ import { useAdmin } from "@/providers/AdminProvider";
 export function AdminCopilot() {
     const { token, yearLabel } = useAdmin();
     const [isOpen, setIsOpen] = useState(false);
+    const [inputValue, setInputValue] = useState("");
 
-    const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+    const { messages, status, sendMessage } = useChat({
         // @ts-expect-error bypass SDK config signature bug
         api: "/api/chat",
-        headers: { Authorization: `Bearer ${token}` },
-    }) as any;
+        fetch: async (url: any, options: any) => {
+            const reqHeaders = new Headers(options?.headers);
+            reqHeaders.set("Authorization", `Bearer ${token}`);
+            return fetch(url, { ...options, headers: reqHeaders });
+        },
+    });
+
+    const isLoading = status === "submitted" || status === "streaming";
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setInputValue(e.target.value);
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!inputValue.trim() || isLoading) return;
+        sendMessage({ text: inputValue });
+        setInputValue("");
+    };
 
     return (
         <>
@@ -100,7 +118,7 @@ export function AdminCopilot() {
                                             className="whitespace-pre-wrap leading-relaxed font-semibold text-[13px]"
                                             // Applying subtle styling to markdown-like lists if needed
                                             dangerouslySetInnerHTML={{
-                                                __html: m.content
+                                                __html: (m.content || m.text || "") // <-- FALLBACK FOR TEXT IF AI SDK USED m.text 
                                                     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                                                     .replace(/\n\s*-\s/g, '<br/>• ') // Basic list bullet
                                             }}
@@ -139,7 +157,7 @@ export function AdminCopilot() {
                             >
                                 <input
                                     type="text"
-                                    value={input || ""}
+                                    value={inputValue}
                                     onChange={handleInputChange}
                                     placeholder="Ask Admin Copilot..."
                                     className="flex-1 bg-transparent py-1.5 text-sm font-semibold focus:outline-none placeholder:opacity-50"
@@ -147,11 +165,11 @@ export function AdminCopilot() {
                                 />
                                 <button
                                     type="submit"
-                                    disabled={!(input || "").trim() || isLoading}
+                                    disabled={!(inputValue || "").trim() || isLoading}
                                     className="p-1.5 rounded-lg transition-transform hover:scale-105"
                                     style={{
-                                        color: (input || "").trim() && !isLoading ? "#8b5cf6" : "var(--text-3)",
-                                        opacity: (input || "").trim() && !isLoading ? 1 : 0.4,
+                                        color: (inputValue || "").trim() && !isLoading ? "#8b5cf6" : "var(--text-3)",
+                                        opacity: (inputValue || "").trim() && !isLoading ? 1 : 0.4,
                                     }}
                                 >
                                     <Send size={18} />
