@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
 import type { UIMessage } from "ai";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageSquare, X, Send, Bot } from "lucide-react";
@@ -13,13 +14,12 @@ export function AdminCopilot() {
     const [inputValue, setInputValue] = useState("");
 
     const { messages, status, sendMessage } = useChat({
-        // @ts-expect-error bypass SDK config signature bug
-        api: "/api/chat",
-        fetch: async (url: any, options: any) => {
-            const reqHeaders = new Headers(options?.headers);
-            reqHeaders.set("Authorization", `Bearer ${token}`);
-            return fetch(url, { ...options, headers: reqHeaders });
-        },
+        transport: new DefaultChatTransport({
+            api: "/api/chat",
+            headers: () => ({
+                Authorization: `Bearer ${token}`,
+            }),
+        }),
     });
 
     const isLoading = status === "submitted" || status === "streaming";
@@ -97,35 +97,40 @@ export function AdminCopilot() {
                                     </p>
                                 </div>
                             )}
-                            {messages.map((m: any) => (
-                                <div
-                                    key={m.id}
-                                    className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
-                                >
+                            {messages.map((m: any) => {
+                                // v7 UIMessage stores content in parts[], not m.content
+                                const text = Array.isArray(m.parts)
+                                    ? m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text).join("")
+                                    : (m.content || m.text || "");
+                                return (
                                     <div
-                                        className={`max-w-[85%] px-4 py-2.5 text-sm ${m.role === "user"
-                                            ? "rounded-2xl rounded-tr-none"
-                                            : "rounded-2xl rounded-tl-none"
-                                            }`}
-                                        style={{
-                                            background: m.role === "user" ? "#8b5cf6" : "var(--badge-light-bg)",
-                                            color: m.role === "user" ? "#fff" : "var(--text-1)",
-                                            border: m.role === "assistant" ? "1px solid var(--border)" : "none",
-                                            boxShadow: m.role === "user" ? "0 4px 14px 0 rgba(139,92,246,0.39)" : "none"
-                                        }}
+                                        key={m.id}
+                                        className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
                                     >
                                         <div
-                                            className="whitespace-pre-wrap leading-relaxed font-semibold text-[13px]"
-                                            // Applying subtle styling to markdown-like lists if needed
-                                            dangerouslySetInnerHTML={{
-                                                __html: (m.content || m.text || "") // <-- FALLBACK FOR TEXT IF AI SDK USED m.text 
-                                                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                                                    .replace(/\n\s*-\s/g, '<br/>• ') // Basic list bullet
+                                            className={`max-w-[85%] px-4 py-2.5 text-sm ${m.role === "user"
+                                                ? "rounded-2xl rounded-tr-none"
+                                                : "rounded-2xl rounded-tl-none"
+                                                }`}
+                                            style={{
+                                                background: m.role === "user" ? "#8b5cf6" : "var(--badge-light-bg)",
+                                                color: m.role === "user" ? "#fff" : "var(--text-1)",
+                                                border: m.role === "assistant" ? "1px solid var(--border)" : "none",
+                                                boxShadow: m.role === "user" ? "0 4px 14px 0 rgba(139,92,246,0.39)" : "none"
                                             }}
-                                        />
+                                        >
+                                            <div
+                                                className="whitespace-pre-wrap leading-relaxed font-semibold text-[13px]"
+                                                dangerouslySetInnerHTML={{
+                                                    __html: text
+                                                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                                        .replace(/\n\s*-\s/g, '<br/>• ')
+                                                }}
+                                            />
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                             {isLoading && (
                                 <div className="flex justify-start">
                                     <div

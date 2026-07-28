@@ -59,5 +59,5 @@ export function checkPassword(password: string): boolean {
     return false;
   }
 
-  return password === expected;
+  return password.trim() === expected.trim();
 }

@@ -1,5 +1,5 @@
 import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
+import { streamText, createUIMessageStreamResponse, convertToModelMessages } from "ai";
 import { NextResponse } from "next/server";
 import { extractToken, validateToken } from "@/lib/adminAuth";
 import { readAdminData } from "@/lib/adminStore";
@@ -40,13 +40,18 @@ We have ${totalRooms} room assignments active right now.
 
 Be concise. Keep answers brief unless explicitly asked for detail. Format all replies cleanly in markdown.`;
 
+        // v7: client sends UIMessage[], streamText needs ModelMessage[]
+        const modelMessages = await convertToModelMessages(messages);
+
         const result = streamText({
             model: openai("gpt-4o-mini"),
-            system: systemPrompt,
-            messages,
+            instructions: systemPrompt,
+            messages: modelMessages,
         });
 
-        return result.toUIMessageStreamResponse();
+        return createUIMessageStreamResponse({
+            stream: result.toUIMessageStream(),
+        });
     } catch (error) {
         console.error("Copilot Error:", error);
         return NextResponse.json(
