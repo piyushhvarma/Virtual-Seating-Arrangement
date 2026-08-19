@@ -1,5 +1,6 @@
 import { openai } from "@ai-sdk/openai";
-import { streamText, createUIMessageStreamResponse, convertToModelMessages } from "ai";
+import { streamText, convertToModelMessages } from "ai";
+import type { UIMessage } from "ai";
 import { NextResponse } from "next/server";
 import { extractToken, validateToken } from "@/lib/adminAuth";
 import { readAdminData } from "@/lib/adminStore";
@@ -14,7 +15,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { messages } = await req.json();
+        const { messages }: { messages: UIMessage[] } = await req.json();
 
         // 2. Fetch live data so the copilot can answer real questions about the system
         const data = await readAdminData();
@@ -40,7 +41,7 @@ We have ${totalRooms} room assignments active right now.
 
 Be concise. Keep answers brief unless explicitly asked for detail. Format all replies cleanly in markdown.`;
 
-        // v7: client sends UIMessage[], streamText needs ModelMessage[]
+        // v7: UIMessage[] → ModelMessage[] conversion required before streamText
         const modelMessages = await convertToModelMessages(messages);
 
         const result = streamText({
@@ -49,9 +50,7 @@ Be concise. Keep answers brief unless explicitly asked for detail. Format all re
             messages: modelMessages,
         });
 
-        return createUIMessageStreamResponse({
-            stream: result.toUIMessageStream(),
-        });
+        return result.toUIMessageStreamResponse();
     } catch (error) {
         console.error("Copilot Error:", error);
         return NextResponse.json(
