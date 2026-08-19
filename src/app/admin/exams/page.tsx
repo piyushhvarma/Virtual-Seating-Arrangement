@@ -63,8 +63,16 @@ export default function ExamsPage() {
   const [groupName, setGroupName] = useState("");
   const [groupNameError, setGroupNameError] = useState("");
   const isSavingGroup = useRef(false);
-  // Expanded group IDs
+  // Expanded group IDs (collapsed/expanded in the groups list)
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  // Expanded discrepancy detail panels (per group id in the coverage section)
+  const [expandedDiscrepancy, setExpandedDiscrepancy] = useState<Set<string>>(new Set());
+  const toggleDiscrepancy = (groupId: string) =>
+    setExpandedDiscrepancy((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId); else next.add(groupId);
+      return next;
+    });
 
   // ── Subject form state ───────────────────────────
   const [formCode, setFormCode] = useState("");
@@ -938,67 +946,151 @@ export default function ExamsPage() {
                     </p>
                   ) : (
                     <div className="space-y-3">
-                      {/* Missing students */}
-                      {missing.length > 0 && (
-                        <div>
-                          <p className="text-[11px] font-black mb-1.5" style={{ color: "#ef4444" }}>
-                            ❌ {missing.length} student{missing.length !== 1 ? "s" : ""} missing from {group.name} — not enrolled in any subject of this group:
-                          </p>
-                          <div
-                            className="flex flex-wrap gap-1 max-h-36 overflow-y-auto p-2 rounded-xl"
-                            style={{ background: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.15)" }}
-                          >
-                            {missing.map((regNo) => (
-                              <span
-                                key={regNo}
-                                className="text-[9px] font-bold px-1.5 py-0.5 rounded-md"
-                                style={{
-                                  background: "rgba(239,68,68,0.1)",
-                                  color: "#ef4444",
-                                  border: "1px solid rgba(239,68,68,0.25)",
-                                  fontFamily: "var(--font-mono)",
-                                }}
-                              >
-                                {regNo}
-                              </span>
-                            ))}
-                          </div>
-                          <p className="text-[10px] mt-1 font-semibold" style={{ color: "var(--text-3)" }}>
-                            Re-upload the Excel for one of the {group.name} subjects to include these students.
-                          </p>
+                      {/* Summary line */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex gap-3 text-[11px] font-semibold">
+                          {missing.length > 0 && (
+                            <span style={{ color: "#ef4444" }}>
+                              ❌ {missing.length} missing
+                            </span>
+                          )}
+                          {duplicates.length > 0 && (
+                            <span style={{ color: "#f59e0b" }}>
+                              ⚠️ {duplicates.length} duplicate{duplicates.length !== 1 ? "s" : ""}
+                            </span>
+                          )}
                         </div>
-                      )}
+                        <button
+                          onClick={() => toggleDiscrepancy(group.id)}
+                          className="text-[10px] font-black px-3 py-1 rounded-lg transition-all hover:opacity-80 flex items-center gap-1"
+                          style={{
+                            background: expandedDiscrepancy.has(group.id) ? "rgba(239,68,68,0.1)" : "var(--input-bg)",
+                            color: expandedDiscrepancy.has(group.id) ? "#ef4444" : "var(--text-2)",
+                            border: `1.5px solid ${expandedDiscrepancy.has(group.id) ? "rgba(239,68,68,0.35)" : "var(--border)"}`,
+                          }}
+                        >
+                          {expandedDiscrepancy.has(group.id) ? "▲ Hide" : "▼ See Discrepancies"}
+                        </button>
+                      </div>
 
-                      {/* Duplicate students */}
-                      {duplicates.length > 0 && (
-                        <div>
-                          <p className="text-[11px] font-black mb-1.5" style={{ color: "#f59e0b" }}>
-                            ⚠️ {duplicates.length} student{duplicates.length !== 1 ? "s" : ""} enrolled in more than one {group.name} subject (duplicates):
-                          </p>
-                          <div
-                            className="flex flex-wrap gap-1 max-h-24 overflow-y-auto p-2 rounded-xl"
-                            style={{ background: "rgba(245,158,11,0.04)", border: "1px solid rgba(245,158,11,0.15)" }}
-                          >
-                            {duplicates.map((regNo) => (
-                              <span
-                                key={regNo}
-                                className="text-[9px] font-bold px-1.5 py-0.5 rounded-md"
-                                style={{
-                                  background: "rgba(245,158,11,0.1)",
-                                  color: "#f59e0b",
-                                  border: "1px solid rgba(245,158,11,0.25)",
-                                  fontFamily: "var(--font-mono)",
-                                }}
+                      {/* Expandable detail table */}
+                      <AnimatePresence>
+                        {expandedDiscrepancy.has(group.id) && (() => {
+                          // Build unified row list: missing + duplicates
+                          type DiscrepancyRow = { regNo: string; name: string; section: string; issues: { label: string; color: string; bg: string }[] };
+                          const rowMap = new Map<string, DiscrepancyRow>();
+
+                          missing.forEach((regNo) => {
+                            const st = data.students[regNo];
+                            rowMap.set(regNo, {
+                              regNo,
+                              name: st?.name ?? "—",
+                              section: st?.section ?? "—",
+                              issues: [{ label: `Missing in ${group.name}`, color: "#ef4444", bg: "rgba(239,68,68,0.1)" }],
+                            });
+                          });
+
+                          duplicates.forEach((regNo) => {
+                            const st = data.students[regNo];
+                            // Find which subjects they appear in within this group
+                            const groupSubjectNames = group.subjectIds
+                              .map((sid) => data.subjects.find((s) => s.id === sid))
+                              .filter(Boolean)
+                              .filter((s) => s!.enrolledStudents.some((e) => e.regNo === regNo))
+                              .map((s) => s!.name);
+                            const existing = rowMap.get(regNo);
+                            const dupeIssue = { label: `Duplicate in ${group.name} (${groupSubjectNames.join(", ")})`, color: "#f59e0b", bg: "rgba(245,158,11,0.1)" };
+                            if (existing) {
+                              existing.issues.push(dupeIssue);
+                            } else {
+                              rowMap.set(regNo, {
+                                regNo,
+                                name: st?.name ?? "—",
+                                section: st?.section ?? "—",
+                                issues: [dupeIssue],
+                              });
+                            }
+                          });
+
+                          const rows = [...rowMap.values()].sort((a, b) => a.regNo.localeCompare(b.regNo));
+
+                          return (
+                            <motion.div
+                              key="disc-table"
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              transition={{ duration: 0.18 }}
+                              style={{ overflow: "hidden" }}
+                            >
+                              <div
+                                className="rounded-xl overflow-hidden"
+                                style={{ border: "1px solid var(--border)", background: "var(--input-bg)" }}
                               >
-                                {regNo}
-                              </span>
-                            ))}
-                          </div>
-                          <p className="text-[10px] mt-1 font-semibold" style={{ color: "var(--text-3)" }}>
-                            These students appear in multiple {group.name} subjects — fix the allocation Excel to assign each to exactly one.
-                          </p>
-                        </div>
-                      )}
+                                {/* Table header */}
+                                <div
+                                  className="grid text-[9px] font-black uppercase tracking-wider px-3 py-2"
+                                  style={{
+                                    gridTemplateColumns: "1fr 2fr 60px 2fr",
+                                    color: "var(--text-3)",
+                                    borderBottom: "1px solid var(--border)",
+                                    background: "var(--card-bg)",
+                                  }}
+                                >
+                                  <span>Reg No</span>
+                                  <span>Name</span>
+                                  <span>Sec</span>
+                                  <span>Issue</span>
+                                </div>
+                                {/* Rows */}
+                                <div className="max-h-64 overflow-y-auto divide-y" style={{ borderColor: "var(--border)" }}>
+                                  {rows.map((row) => (
+                                    <div
+                                      key={row.regNo}
+                                      className="grid items-start px-3 py-2 gap-1"
+                                      style={{ gridTemplateColumns: "1fr 2fr 60px 2fr" }}
+                                    >
+                                      <span
+                                        className="text-[10px] font-bold"
+                                        style={{ color: "var(--text-1)", fontFamily: "var(--font-mono)" }}
+                                      >
+                                        {row.regNo}
+                                      </span>
+                                      <span className="text-[10px] font-semibold" style={{ color: "var(--text-1)" }}>
+                                        {row.name}
+                                      </span>
+                                      <span className="text-[10px] font-semibold" style={{ color: "var(--text-2)" }}>
+                                        {row.section}
+                                      </span>
+                                      <div className="flex flex-col gap-1">
+                                        {row.issues.map((issue, ii) => (
+                                          <span
+                                            key={ii}
+                                            className="text-[9px] font-bold px-1.5 py-0.5 rounded-md w-fit"
+                                            style={{
+                                              background: issue.bg,
+                                              color: issue.color,
+                                              border: `1px solid ${issue.color}44`,
+                                            }}
+                                          >
+                                            {issue.label}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                                <div
+                                  className="px-3 py-1.5 text-[10px] font-semibold"
+                                  style={{ color: "var(--text-3)", borderTop: "1px solid var(--border)" }}
+                                >
+                                  {rows.length} student{rows.length !== 1 ? "s" : ""} with discrepancies · Re-upload the allocation Excel to fix.
+                                </div>
+                              </div>
+                            </motion.div>
+                          );
+                        })()}
+                      </AnimatePresence>
                     </div>
                   )}
                 </motion.div>
