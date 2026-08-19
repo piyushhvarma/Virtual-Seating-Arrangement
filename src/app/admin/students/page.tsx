@@ -66,6 +66,8 @@ export default function StudentsPage() {
     });
   }, [students, filterSection, filterYear, searchQuery]);
 
+  const [uploadMode, setUploadMode] = useState<"merge" | "replace">("merge");
+
   // ── File Upload Handler ──────────────────────────
   const handleFileUpload = useCallback(
     async (file: File) => {
@@ -75,10 +77,13 @@ export default function StudentsPage() {
         const buffer = await file.arrayBuffer();
         const workbook = XLSX.read(buffer, { type: "array" });
 
-        const newStudents: Record<string, MasterStudent> = {
-          ...data.students,
-        };
+        // In replace mode start fresh; in merge mode start with existing
+        const newStudents: Record<string, MasterStudent> =
+          uploadMode === "replace" ? {} : { ...data.students };
+
         let addedCount = 0;
+        let updatedCount = 0;
+        let skippedCount = 0;
 
         for (const sheetName of workbook.SheetNames) {
           const sheet = workbook.Sheets[sheetName];
@@ -103,7 +108,10 @@ export default function StudentsPage() {
               .trim()
               .toUpperCase();
 
-            if (!regNoRaw || !looksLikeMujRegNo(regNoRaw)) continue;
+            if (!regNoRaw || !looksLikeMujRegNo(regNoRaw)) {
+              if (regNoRaw) skippedCount++; // non-empty but failed validation
+              continue;
+            }
             const regNo = regNoRaw;
 
             const nameFull = pickField(row, NAME_ALIASES).trim();
@@ -118,7 +126,11 @@ export default function StudentsPage() {
 
             const year = getYearFromRegNo(regNo);
 
-            if (!newStudents[regNo]) addedCount++;
+            if (!newStudents[regNo]) {
+              addedCount++;
+            } else {
+              updatedCount++;
+            }
             newStudents[regNo] = { regNo, name, section, year };
           }
         }
@@ -126,21 +138,25 @@ export default function StudentsPage() {
         const newData = { ...data, students: newStudents };
         setData(newData);
         await saveData(newData);
+
+        const total = Object.keys(newStudents).length;
+        const skipNote = skippedCount > 0 ? ` · ⚠️ ${skippedCount} rows skipped (invalid reg no format)` : "";
         setUploadStatus(
-          `✅ Done! Added ${addedCount} new students. Total: ${Object.keys(newStudents).length}`
+          `✅ Done! ${addedCount} new · ${updatedCount} updated · Total: ${total}${skipNote}`
         );
         setTimeout(() => {
           setUploadStatus(null);
           setShowUpload(false);
-        }, 3000);
+        }, 5000);
       } catch (err) {
         setUploadStatus(
           `❌ Error: ${err instanceof Error ? err.message : "Failed to parse file"}`
         );
       }
     },
-    [data, setData, saveData]
+    [data, setData, saveData, uploadMode]
   );
+
 
   // ── Add/Edit Student ─────────────────────────────
   const [formReg, setFormReg] = useState("");
@@ -335,6 +351,32 @@ export default function StudentsPage() {
                 </button>
               </div>
 
+              {/* Merge / Replace toggle */}
+              <div className="flex gap-2 mb-4">
+                <button
+                  onClick={() => setUploadMode("merge")}
+                  className="flex-1 px-3 py-2 rounded-xl text-xs font-bold transition-all"
+                  style={{
+                    background: uploadMode === "merge" ? "rgba(16,185,129,0.1)" : "var(--input-bg)",
+                    color: uploadMode === "merge" ? "#10b981" : "var(--text-2)",
+                    border: `2px solid ${uploadMode === "merge" ? "#10b981" : "var(--border)"}`,
+                  }}
+                >
+                  ＋ Merge (add to existing)
+                </button>
+                <button
+                  onClick={() => setUploadMode("replace")}
+                  className="flex-1 px-3 py-2 rounded-xl text-xs font-bold transition-all"
+                  style={{
+                    background: uploadMode === "replace" ? "rgba(239,68,68,0.1)" : "var(--input-bg)",
+                    color: uploadMode === "replace" ? "#ef4444" : "var(--text-2)",
+                    border: `2px solid ${uploadMode === "replace" ? "#ef4444" : "var(--border)"}`,
+                  }}
+                >
+                  ↺ Replace all students
+                </button>
+              </div>
+
               <div
                 className="border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all hover:opacity-70"
                 style={{
@@ -377,6 +419,7 @@ export default function StudentsPage() {
                   }}
                 />
               </div>
+
 
               {uploadStatus && (
                 <p
