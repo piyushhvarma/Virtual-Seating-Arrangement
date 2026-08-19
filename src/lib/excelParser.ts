@@ -62,9 +62,13 @@ export const SECTION_ALIASES = [
 ];
 
 // Helper: detect if a string looks like a MUJ reg number
-// Flexible: starts with 2 digits + FE, followed by any alphanumerics
+// Format: 2-digit year + FE + 2-digit campus code + dept code (2-6 chars) + 5-6 digit roll
+// e.g. 23FE10CAI00001, 23FE10MEC00001, 23FE11CSE00001, 22FE10EEE00580
+// Relaxed to handle all department/campus combinations across MUJ.
 export function looksLikeMujRegNo(val: string): boolean {
-    return /^\d{2}FE\d{2}[A-Z0-9]{2,6}\d{3,6}$/i.test(val.trim());
+    const clean = val.trim().toUpperCase();
+    // Must start with 2 digits + FE, then be all alphanumeric, minimum 12 chars total
+    return /^\d{2}FE[A-Z0-9]{6,14}$/.test(clean);
 }
 
 // Helper: Typical sections: "A", "B1", "X", usually 1-4 uppercase/numeric chars, never a reg number.
