@@ -111,31 +111,59 @@ export default function SettingsPage() {
     URL.revokeObjectURL(url);
   }, [fullData]);
 
-  // ── Restore Backup ───────────────────────────────
+  // ── Single Year Backup Download ──────────────────
+  const downloadSingleYearBackup = useCallback(() => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `admin-backup-${yearLabel.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split("T")[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [data, yearLabel]);
+
+  // ── Restore Backup (Full or Single) ──────────────
   const restoreBackup = useCallback(
     async (file: File) => {
       try {
         const text = await file.text();
         const parsed = JSON.parse(text);
+
+        let payloadToSave = null;
+
         if (parsed.version && parsed.years) {
-          // Full v2 backup — restore via the API directly
-          const res = await fetch("/api/admin/data", {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ data: parsed }),
-          });
-          if (res.ok) {
-            window.location.reload();
-          }
+          // Full v2 backup
+          if (!window.confirm("Restore FULL backup? This will overwrite ALL YEARS.")) return;
+          payloadToSave = parsed;
+        } else if (parsed.students && Array.isArray(parsed.roomAssignments)) {
+          // Single year backup
+          if (!window.confirm(`Restore single-year backup into ${yearLabel}? This will overwrite ONLY ${yearLabel}.`)) return;
+          payloadToSave = { ...fullData, years: { ...fullData.years, [selectedYear]: parsed } };
+        } else {
+          alert("Invalid backup file format.");
+          return;
+        }
+
+        const res = await fetch("/api/admin/data", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ data: payloadToSave }),
+        });
+        if (res.ok) {
+          window.location.reload();
+        } else {
+          alert("Failed to restore backup.");
         }
       } catch {
-        // Silently fail
+        alert("Error reading backup file.");
       }
     },
-    [token]
+    [token, fullData, selectedYear, yearLabel]
   );
 
   return (
@@ -303,41 +331,63 @@ export default function SettingsPage() {
         >
           Data Management
         </h2>
-        <div className="flex flex-wrap gap-2">
-          <motion.button
-            className="pill-btn text-xs px-4 py-2"
-            style={{
-              background: "var(--card-bg)",
-              color: "var(--text-1)",
-              border: "2px solid var(--card-border)",
-            }}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={downloadBackup}
-          >
-            <Download size={13} /> Download Full Backup (All Years)
-          </motion.button>
-          <label>
-            <motion.span
-              className="pill-btn text-xs px-4 py-2 cursor-pointer inline-flex"
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap gap-2">
+            <motion.button
+              className="pill-btn text-xs px-4 py-2"
+              style={{
+                background: "rgba(16,185,129,0.1)",
+                color: "#10b981",
+                border: "2px solid rgba(16,185,129,0.2)",
+              }}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={downloadSingleYearBackup}
+            >
+              <Download size={13} /> Download {yearLabel} Backup
+            </motion.button>
+            <motion.button
+              className="pill-btn text-xs px-4 py-2"
               style={{
                 background: "var(--card-bg)",
                 color: "var(--text-1)",
                 border: "2px solid var(--card-border)",
               }}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={downloadBackup}
             >
-              <Upload size={13} /> Restore Backup
-            </motion.span>
-            <input
-              type="file"
-              accept=".json"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) restoreBackup(f);
-              }}
-            />
-          </label>
+              <Download size={13} /> Full Backup (All Years)
+            </motion.button>
+          </div>
+
+          <div className="pt-2 border-t" style={{ borderColor: "var(--border)" }}>
+            <label>
+              <motion.span
+                className="pill-btn text-xs px-4 py-2 cursor-pointer inline-flex"
+                style={{
+                  background: "var(--card-bg)",
+                  color: "var(--text-1)",
+                  border: "2px solid var(--card-border)",
+                }}
+              >
+                <Upload size={13} /> Restore Backup (Upload JSON)
+              </motion.span>
+              <input
+                type="file"
+                accept=".json"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) restoreBackup(f);
+                  e.target.value = ''; // Reset input
+                }}
+              />
+            </label>
+            <p className="text-[10px] mt-2 font-bold" style={{ color: "var(--text-3)" }}>
+              Upload either a Full Backup or a Single-Year Backup. The system will automatically detect the format.
+            </p>
+          </div>
         </div>
       </motion.div>
 
