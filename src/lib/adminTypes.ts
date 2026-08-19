@@ -28,6 +28,15 @@ export interface ElectiveEnrollment {
 }
 
 
+// ── Elective Group ────────────────────────────────
+// A named container like "PE1" or "PE2" that holds references to elective subjects.
+// Admin first creates the group, then adds subjects to it.
+export interface ElectiveGroup {
+  id: string;
+  name: string;         // e.g. "PE1", "PE2", "OE1"
+  subjectIds: string[]; // ordered list of subject IDs belonging to this group
+}
+
 // ── Subject ────────────────────────────────────────
 export type SubjectType = "core" | "elective";
 
@@ -70,6 +79,7 @@ export interface YearData {
   label: string;              // "2nd Year", "3rd Year", "4th Year"
   published: boolean;
   students: Record<string, MasterStudent>;
+  electiveGroups: ElectiveGroup[]; // PE1, PE2, OE1 … define groups first, then add subjects
   subjects: Subject[];
   roomAssignments: RoomAssignment[];
   lastModified: string;
@@ -91,6 +101,7 @@ export interface YearScopedData {
   examMeta: ExamMeta;
   published: boolean;
   students: Record<string, MasterStudent>;
+  electiveGroups: ElectiveGroup[];
   subjects: Subject[];
   roomAssignments: RoomAssignment[];
   lastModified: string;
@@ -109,6 +120,7 @@ function createEmptyYearData(label: string): YearData {
     label,
     published: false,
     students: {},
+    electiveGroups: [],
     subjects: [],
     roomAssignments: [],
     lastModified: new Date().toISOString(),
@@ -146,6 +158,7 @@ export function migrateV1toV2(v1: any): AdminData {
       label: "3rd Year",
       published: v1.published || false,
       students: v1.students || {},
+      electiveGroups: v1.electiveGroups || [],
       subjects: v1.subjects || [],
       roomAssignments: v1.roomAssignments || [],
       lastModified: v1.lastModified || new Date().toISOString(),
