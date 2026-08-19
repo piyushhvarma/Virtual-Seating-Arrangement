@@ -392,11 +392,26 @@ export default function ExamsPage() {
   const electiveCoverage = useMemo(() => {
     const electiveSubjects = data.subjects.filter((s) => s.type === "elective");
     if (electiveSubjects.length === 0) return null;
-    const covered = new Set<string>();
-    electiveSubjects.forEach((s) => s.enrolledStudents.forEach((e) => covered.add(e.regNo)));
+
+    // All reg nos from elective Excel (may include students not in master list)
+    const enrolledSet = new Set<string>();
+    electiveSubjects.forEach((s) => s.enrolledStudents.forEach((e) => enrolledSet.add(e.regNo)));
+
     const allRegNos = Object.keys(data.students);
-    const uncovered = allRegNos.filter((r) => !covered.has(r));
-    return { covered: covered.size, total: allRegNos.length, uncovered };
+
+    // covered = enrolled AND in master list (correct count, can never exceed total)
+    const coveredInMaster = allRegNos.filter((r) => enrolledSet.has(r));
+    // uncovered = in master list but NOT enrolled in any elective
+    const uncovered = allRegNos.filter((r) => !enrolledSet.has(r));
+    // ghosts = in elective Excel but NOT in master list (data quality issue)
+    const ghosts = [...enrolledSet].filter((r) => !data.students[r]);
+
+    return {
+      covered: coveredInMaster.length,
+      total: allRegNos.length,
+      uncovered,
+      ghosts,
+    };
   }, [data.subjects, data.students]);
 
   // ── Per-group coverage validation ──────────────────
@@ -846,32 +861,67 @@ export default function ExamsPage() {
               {electiveCoverage.covered}/{electiveCoverage.total} students covered
             </span>
           </div>
-          {electiveCoverage.uncovered.length === 0 ? (
+          {electiveCoverage.uncovered.length === 0 && electiveCoverage.ghosts.length === 0 ? (
             <p className="text-sm font-semibold" style={{ color: "#10b981" }}>
               ✅ All {electiveCoverage.total} students enrolled in at least one elective.
             </p>
           ) : (
-            <>
-              <p className="text-[11px] font-semibold" style={{ color: "#f59e0b" }}>
-                ⚠️ {electiveCoverage.uncovered.length} students not enrolled in any elective:
-              </p>
-              <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
-                {electiveCoverage.uncovered.map((regNo) => (
-                  <span
-                    key={regNo}
-                    className="text-[10px] font-bold px-2 py-0.5 rounded-md"
-                    style={{
-                      background: "rgba(245,158,11,0.08)",
-                      color: "#f59e0b",
-                      border: "1px solid rgba(245,158,11,0.2)",
-                      fontFamily: "var(--font-mono)",
-                    }}
-                  >
-                    {regNo}
-                  </span>
-                ))}
-              </div>
-            </>
+            <div className="space-y-3">
+              {electiveCoverage.uncovered.length > 0 && (
+                <>
+                  <p className="text-[11px] font-semibold" style={{ color: "#f59e0b" }}>
+                    ⚠️ {electiveCoverage.uncovered.length} students not enrolled in any elective:
+                  </p>
+                  <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
+                    {electiveCoverage.uncovered.map((regNo) => (
+                      <span
+                        key={regNo}
+                        className="text-[10px] font-bold px-2 py-0.5 rounded-md"
+                        style={{
+                          background: "rgba(245,158,11,0.08)",
+                          color: "#f59e0b",
+                          border: "1px solid rgba(245,158,11,0.2)",
+                          fontFamily: "var(--font-mono)",
+                        }}
+                      >
+                        {regNo}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* Ghost students — in Excel but not in master list */}
+              {electiveCoverage.ghosts.length > 0 && (
+                <div
+                  className="rounded-xl p-3 space-y-2"
+                  style={{ background: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.2)" }}
+                >
+                  <p className="text-[11px] font-black" style={{ color: "#ef4444" }}>
+                    ❌ {electiveCoverage.ghosts.length} reg no{electiveCoverage.ghosts.length !== 1 ? "s" : ""} found in the elective Excel but NOT in the master student list — causing the covered count to exceed total.
+                  </p>
+                  <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                    {electiveCoverage.ghosts.map((regNo) => (
+                      <span
+                        key={regNo}
+                        className="text-[9px] font-bold px-1.5 py-0.5 rounded-md"
+                        style={{
+                          background: "rgba(239,68,68,0.1)",
+                          color: "#ef4444",
+                          border: "1px solid rgba(239,68,68,0.3)",
+                          fontFamily: "var(--font-mono)",
+                        }}
+                      >
+                        {regNo}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-[10px] font-semibold" style={{ color: "var(--text-3)" }}>
+                    These reg nos are not in your master student upload. Either re-upload the master list or remove these entries from the elective Excel.
+                  </p>
+                </div>
+              )}
+            </div>
           )}
         </motion.div>
       )}
