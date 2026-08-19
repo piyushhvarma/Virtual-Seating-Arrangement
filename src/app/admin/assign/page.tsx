@@ -13,6 +13,7 @@ import {
   ChevronDown,
   Zap,
   Tag,
+  Combine,
 } from "lucide-react";
 import { useAdmin } from "@/providers/AdminProvider";
 import { autoAssignSeats } from "@/lib/seatAllocator";
@@ -209,6 +210,65 @@ export default function AssignPage() {
     },
     [data, setData, saveData]
   );
+
+  // ── Merge Rooms ──────────────────────────────────
+  // Repacks all students currently assigned to this subject into the existing rooms sequentially,
+  // filling them up completely before moving to the next. Any room that becomes 100% empty is deleted.
+  const handleMergeRooms = useCallback(async () => {
+    if (!subject) return;
+
+    const rooms = data.roomAssignments.filter((r) => r.subjectId === subject.id);
+    if (rooms.length < 2) return;
+
+    // 1. Gather all assigned students for this subject
+    const allAssignedRegs: string[] = [];
+    rooms.forEach(r => r.assignments.forEach(a => allAssignedRegs.push(a.regNo)));
+    allAssignedRegs.sort((a, b) => a.localeCompare(b));
+
+    // 2. Clear out these rooms from data to prepare for repacking
+    let remainingRegs = [...allAssignedRegs];
+    const newRoomAssignments = data.roomAssignments.filter(r => r.subjectId !== subject.id);
+    const updatedSubjectRooms: RoomAssignment[] = [];
+
+    // 3. Repack remainingRegs into the rooms sequentially
+    for (const room of rooms) {
+      if (remainingRegs.length === 0) break; // All students seated
+
+      // Calculate concurrent occupancy for this specific room
+      const concurrentSubjectIds = new Set(
+        data.subjects
+          .filter((s) => s.id !== subject.id && s.date === subject.date && doTimesOverlap(s.time, subject.time))
+          .map((s) => s.id)
+      );
+
+      const occupied = new Set<number>();
+      newRoomAssignments.forEach((r) => {
+        if (r.room.toUpperCase() === room.room.toUpperCase() && concurrentSubjectIds.has(r.subjectId)) {
+          r.assignments.forEach((a) => occupied.add(a.seatIndex));
+        }
+      });
+
+      // Auto-assign into this room
+      const { assigned } = autoAssignSeats(remainingRegs, room.rows, room.cols, occupied);
+
+      if (assigned.length > 0) {
+        updatedSubjectRooms.push({
+          ...room,
+          assignments: assigned.map((a) => ({ regNo: a.regNo, seatIndex: a.seatIndex }))
+        });
+
+        const assignedSet = new Set(assigned.map(a => a.regNo));
+        remainingRegs = remainingRegs.filter(r => !assignedSet.has(r));
+      }
+    }
+
+    const newData = {
+      ...data,
+      roomAssignments: [...newRoomAssignments, ...updatedSubjectRooms],
+    };
+    setData(newData);
+    await saveData(newData);
+  }, [subject, data, setData, saveData]);
 
   const toggleSection = (sec: string) => {
     setSelectedSections((prev) =>
@@ -537,15 +597,35 @@ export default function AssignPage() {
           transition={{ delay: 0.15 }}
           className="space-y-4"
         >
-          <h2
-            className="text-lg font-black"
-            style={{
-              color: "var(--text-1)",
-              fontFamily: "var(--font-head)",
-            }}
-          >
-            Assigned Rooms ({subjectRooms.length})
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2
+              className="text-lg font-black"
+              style={{
+                color: "var(--text-1)",
+                fontFamily: "var(--font-head)",
+              }}
+            >
+              Assigned Rooms ({subjectRooms.length})
+            </h2>
+
+            {subjectRooms.length > 1 && (
+              <motion.button
+                className="pill-btn text-xs px-4 py-2 flex items-center gap-2"
+                style={{
+                  background: "rgba(16,185,129,0.1)",
+                  color: "#10b981",
+                  border: "2px solid rgba(16,185,129,0.2)",
+                  fontWeight: "bold",
+                }}
+                whileHover={{ scale: 1.02, background: "rgba(16,185,129,0.15)" }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleMergeRooms}
+                title="Consolidate students into fewer rooms to eliminate empty spaces"
+              >
+                <Combine size={14} /> Merge Partial Rooms
+              </motion.button>
+            )}
+          </div>
 
           {subjectRooms.map((room) => (
             <div key={room.id} className="card overflow-hidden">

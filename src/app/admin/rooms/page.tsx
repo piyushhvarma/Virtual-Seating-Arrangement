@@ -6,19 +6,7 @@ import { Eye, MapPin, Users, ChevronDown, Calendar } from "lucide-react";
 import { useAdmin } from "@/providers/AdminProvider";
 import { getSeatCoordinates } from "@/lib/getSeatCoordinates";
 
-// Section colors for visual distinction
-const SECTION_COLORS: Record<string, string> = {
-  A: "#3b82f6",
-  B: "#10b981",
-  C: "#f59e0b",
-  D: "#ef4444",
-  E: "#8b5cf6",
-  F: "#ec4899",
-  G: "#06b6d4",
-  H: "#f97316",
-  I: "#14b8a6",
-  J: "#6366f1",
-};
+
 
 export default function RoomsPage() {
   const { data, yearLabel } = useAdmin();
@@ -132,9 +120,8 @@ export default function RoomsPage() {
                     ? "var(--pill-bg)"
                     : "var(--card-bg)",
                   color: isSelected ? "var(--pill-text)" : "var(--text-1)",
-                  border: `2px solid ${
-                    isSelected ? "var(--card-border)" : "var(--border)"
-                  }`,
+                  border: `2px solid ${isSelected ? "var(--card-border)" : "var(--border)"
+                    }`,
                   boxShadow: isSelected ? "var(--card-shadow-sm)" : "none",
                 }}
               >
@@ -234,34 +221,8 @@ export default function RoomsPage() {
                   </div>
                 </div>
 
-                {/* Section Legend */}
-                <div className="flex flex-wrap gap-2 mt-3">
-                  {(() => {
-                    const secs = new Set<string>();
-                    selectedRoom.assignments.forEach((a) => {
-                      const st = data.students[a.regNo];
-                      if (st) secs.add(st.section);
-                    });
-                    return [...secs].sort().map((sec) => (
-                      <span
-                        key={sec}
-                        className="text-[10px] font-bold px-2 py-0.5 rounded-md"
-                        style={{
-                          background: `${
-                            SECTION_COLORS[sec] || "#666"
-                          }15`,
-                          color: SECTION_COLORS[sec] || "#666",
-                          border: `1.5px solid ${
-                            SECTION_COLORS[sec] || "#666"
-                          }40`,
-                        }}
-                      >
-                        Sec {sec}
-                      </span>
-                    ));
-                  })()}
-                </div>
               </div>
+
 
               {/* Front Desk */}
               <div className="px-5 py-2 flex justify-center">
@@ -293,9 +254,6 @@ export default function RoomsPage() {
                             ? data.students[assignment.regNo]
                             : null;
                           const label = `R${rIdx + 1}C${cIdx + 1}`;
-                          const secColor = student
-                            ? SECTION_COLORS[student.section] || "#666"
-                            : null;
 
                           return (
                             <div
@@ -303,13 +261,12 @@ export default function RoomsPage() {
                               className="rounded-xl p-2 text-center transition-all hover:scale-105 cursor-default relative group"
                               style={{
                                 background: student
-                                  ? `${secColor}10`
+                                  ? "rgba(16,185,129,0.08)"
                                   : "var(--input-bg)",
-                                border: `1.5px solid ${
-                                  student
-                                    ? `${secColor}40`
+                                border: `1.5px solid ${student
+                                    ? "rgba(16,185,129,0.3)"
                                     : "var(--border)"
-                                }`,
+                                  }`,
                                 minHeight: "56px",
                               }}
                             >
@@ -317,7 +274,7 @@ export default function RoomsPage() {
                                 <>
                                   <div
                                     className="text-[9px] font-black truncate"
-                                    style={{ color: secColor! }}
+                                    style={{ color: "#10b981" }}
                                   >
                                     {student.name
                                       .split(" ")
@@ -335,9 +292,9 @@ export default function RoomsPage() {
                                   </div>
                                   <div
                                     className="text-[7px] font-bold mt-0.5"
-                                    style={{ color: secColor!, opacity: 0.6 }}
+                                    style={{ color: "var(--text-3)", opacity: 0.6 }}
                                   >
-                                    {label} · Sec {student.section}
+                                    {label}
                                   </div>
 
                                   {/* Hover tooltip */}
