@@ -61,6 +61,8 @@ export default function ExamsPage() {
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [groupName, setGroupName] = useState("");
+  const [groupNameError, setGroupNameError] = useState("");
+  const isSavingGroup = useRef(false);
   // Expanded group IDs
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
@@ -109,12 +111,28 @@ export default function ExamsPage() {
       setEditingGroupId(null);
       setGroupName("");
     }
+    setGroupNameError("");
+    isSavingGroup.current = false;
     setShowGroupModal(true);
   };
 
   const saveGroup = async () => {
     const trimmed = groupName.trim();
     if (!trimmed) return;
+    // Guard against double-submit (rapid Enter presses)
+    if (isSavingGroup.current) return;
+    isSavingGroup.current = true;
+
+    // Duplicate name check (case-insensitive, skip self when renaming)
+    const isDuplicate = electiveGroups.some(
+      (g) => g.name.trim().toLowerCase() === trimmed.toLowerCase() && g.id !== editingGroupId
+    );
+    if (isDuplicate) {
+      setGroupNameError(`A group named "${trimmed}" already exists.`);
+      isSavingGroup.current = false;
+      return;
+    }
+    setGroupNameError("");
 
     const groups = [...electiveGroups];
     if (editingGroupId) {
@@ -128,6 +146,7 @@ export default function ExamsPage() {
     setData(newData);
     await saveData(newData);
     setShowGroupModal(false);
+    isSavingGroup.current = false;
   };
 
   const deleteGroup = async (groupId: string) => {
@@ -1025,18 +1044,24 @@ export default function ExamsPage() {
                     autoFocus
                     placeholder="e.g. PE1, PE2, OE1"
                     value={groupName}
-                    onChange={(e) => setGroupName(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && saveGroup()}
+                    onChange={(e) => { setGroupName(e.target.value); setGroupNameError(""); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveGroup(); } }}
                     className="w-full rounded-xl px-3 py-2.5 text-sm font-bold focus:outline-none"
                     style={{
-                      border: "2px solid var(--card-border)",
+                      border: `2px solid ${groupNameError ? "#ef4444" : "var(--card-border)"}`,
                       background: "var(--input-bg)",
                       color: "var(--text-1)",
                     }}
                   />
-                  <p className="text-[10px] mt-1.5" style={{ color: "var(--text-3)" }}>
-                    A short name like "PE1" or "Program Elective 1". You can add subjects to this group after saving.
-                  </p>
+                  {groupNameError ? (
+                    <p className="text-[10px] mt-1.5 font-bold" style={{ color: "#ef4444" }}>
+                      ⚠ {groupNameError}
+                    </p>
+                  ) : (
+                    <p className="text-[10px] mt-1.5" style={{ color: "var(--text-3)" }}>
+                      A short name like "PE1" or "Program Elective 1". You can add subjects to this group after saving.
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex gap-2 pt-1">
