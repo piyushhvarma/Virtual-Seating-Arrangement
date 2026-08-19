@@ -393,18 +393,24 @@ export default function ExamsPage() {
     const electiveSubjects = data.subjects.filter((s) => s.type === "elective");
     if (electiveSubjects.length === 0) return null;
 
-    // All reg nos from elective Excel (may include students not in master list)
+    // Normalize master student keys to UPPERCASE+trimmed to handle legacy stored data
+    const masterSet = new Set<string>(
+      Object.keys(data.students).map((k) => k.trim().toUpperCase())
+    );
+    const allRegNos = Object.keys(data.students); // preserve originals for uncovered list
+
+    // All reg nos from elective Excel — normalize to uppercase+trimmed
     const enrolledSet = new Set<string>();
-    electiveSubjects.forEach((s) => s.enrolledStudents.forEach((e) => enrolledSet.add(e.regNo)));
+    electiveSubjects.forEach((s) =>
+      s.enrolledStudents.forEach((e) => enrolledSet.add(e.regNo.trim().toUpperCase()))
+    );
 
-    const allRegNos = Object.keys(data.students);
-
-    // covered = enrolled AND in master list (correct count, can never exceed total)
-    const coveredInMaster = allRegNos.filter((r) => enrolledSet.has(r));
-    // uncovered = in master list but NOT enrolled in any elective
-    const uncovered = allRegNos.filter((r) => !enrolledSet.has(r));
-    // ghosts = in elective Excel but NOT in master list (data quality issue)
-    const ghosts = [...enrolledSet].filter((r) => !data.students[r]);
+    // covered = enrolled reg nos that exist in master (normalized compare)
+    const coveredInMaster = allRegNos.filter((r) => enrolledSet.has(r.trim().toUpperCase()));
+    // uncovered = in master list but NOT in any elective enrollment
+    const uncovered = allRegNos.filter((r) => !enrolledSet.has(r.trim().toUpperCase()));
+    // ghosts = enrolled in elective Excel but NOT in master list (both sides normalized)
+    const ghosts = [...enrolledSet].filter((r) => !masterSet.has(r));
 
     return {
       covered: coveredInMaster.length,
