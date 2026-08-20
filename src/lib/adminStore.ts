@@ -40,10 +40,12 @@ async function readAdminDataFromFile(): Promise<AdminData> {
 
 async function readAdminDataFromBlob(): Promise<AdminData> {
   try {
-    const { head } = await import("@vercel/blob");
-    const result = await head(ADMIN_BLOB_KEY).catch(() => null);
-    if (!result) return createEmptyAdminData();
-    const res = await fetch(result.url, { cache: "no-store" });
+    const { list } = await import("@vercel/blob");
+    // head() needs a full URL; use list() to find the blob by pathname instead
+    const { blobs } = await list({ prefix: ADMIN_BLOB_KEY });
+    const blob = blobs.find((b) => b.pathname === ADMIN_BLOB_KEY);
+    if (!blob) return createEmptyAdminData();
+    const res = await fetch(blob.url, { cache: "no-store" });
     if (!res.ok) return createEmptyAdminData();
     return (await res.json()) as AdminData;
   } catch {
